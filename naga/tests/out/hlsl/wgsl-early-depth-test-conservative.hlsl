@@ -5,5 +5,5 @@ struct FragmentInput_main {
 float main(FragmentInput_main fragmentinput_main) : SV_DepthLessEqual
 {
     float4 pos = float4(fragmentinput_main.pos_1.xyz, 1.0 / fragmentinput_main.pos_1.w);
-    return (pos.z - 0.1);
+    return (pos.z - 0.1f);
 }

@@ -3829,7 +3829,8 @@ impl<'a, W: fmt::Write> super::Writer<'a, W> {
     pub(super) fn write_literal(&mut self, literal: crate::Literal) -> BackendResult {
         match literal {
             crate::Literal::F64(value) => write!(self.out, "{value:?}L")?,
-            crate::Literal::F32(value) => write!(self.out, "{value:?}")?,
+            // DXC otherwise promotes expressions made entirely from literals to f64.
+            crate::Literal::F32(value) => write!(self.out, "{value:?}f")?,
             crate::Literal::F16(value) => write!(self.out, "{value:?}h")?,
             crate::Literal::U16(value) => write!(self.out, "uint16_t({value})")?,
             crate::Literal::I16(value) => write!(self.out, "int16_t({value})")?,

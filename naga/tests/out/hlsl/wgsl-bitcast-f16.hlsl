@@ -72,10 +72,10 @@ void main()
     half4 h4_ = half4(1.0h, 2.0h, 3.0h, 4.0h);
     int i1_ = int(0);
     uint u1_ = 0u;
-    float f1_ = 0.0;
+    float f1_ = 0.0f;
     int2 i2_ = (int(0)).xx;
     uint2 u2_ = (0u).xx;
-    float2 f2_ = (0.0).xx;
+    float2 f2_ = (0.0f).xx;
 
     half2 _e25 = h2_;
     i1_ = naga_bitcast_half2_to_int(_e25);
@@ -107,7 +107,7 @@ void main()
     u1_ = _e51;
     u1_ = 4294967295u;
     f1_ = asfloat(int(1));
-    i1_ = asint(1.0);
+    i1_ = asint(1.0f);
     h2_ = naga_bitcast_int_to_half2(int(1));
     h2_ = half2(1.0h, 2.0h);
     h4_ = naga_bitcast_int2_to_half4(int2(int(1), int(2)));

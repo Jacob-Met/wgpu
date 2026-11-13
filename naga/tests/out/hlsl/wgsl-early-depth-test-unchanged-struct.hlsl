@@ -33,7 +33,7 @@ ColorAndDepth ConstructColorAndDepth(float4 arg0, float arg1) {
 FragmentOutput_color_and_depth color_and_depth(FragmentInput_color_and_depth fragmentinput_color_and_depth)
 {
     float4 pos = float4(fragmentinput_color_and_depth.pos_3.xyz, 1.0 / fragmentinput_color_and_depth.pos_3.w);
-    const ColorAndDepth coloranddepth = ConstructColorAndDepth(float4(0.4, 0.3, 0.2, 0.1), pos.z);
+    const ColorAndDepth coloranddepth = ConstructColorAndDepth(float4(0.4f, 0.3f, 0.2f, 0.1f), pos.z);
     const FragmentOutput_color_and_depth coloranddepth_1 = { coloranddepth.color };
     return coloranddepth_1;
 }
@@ -53,6 +53,6 @@ void only_depth(FragmentInput_only_depth fragmentinput_only_depth)
 ColorAndDepth unrestricted(FragmentInput_unrestricted fragmentinput_unrestricted)
 {
     float4 pos_2 = float4(fragmentinput_unrestricted.pos_5.xyz, 1.0 / fragmentinput_unrestricted.pos_5.w);
-    const ColorAndDepth coloranddepth_2 = ConstructColorAndDepth(float4(0.1, 0.2, 0.3, 0.4), (pos_2.z * 2.0));
+    const ColorAndDepth coloranddepth_2 = ConstructColorAndDepth(float4(0.1f, 0.2f, 0.3f, 0.4f), (pos_2.z * 2.0f));
     return coloranddepth_2;
 }
