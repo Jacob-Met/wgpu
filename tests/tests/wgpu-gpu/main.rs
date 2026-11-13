@@ -15,6 +15,7 @@ mod regression {
     pub mod issue_9316;
 
     pub mod issue_10038;
+    pub mod issue_10813;
 }
 
 mod adapter;
@@ -159,6 +160,7 @@ fn all_tests() -> Vec<wgpu_test::GpuTestInitializer> {
     regression::issue_9115::all_tests(&mut tests);
     regression::issue_9316::all_tests(&mut tests);
     regression::issue_10038::all_tests(&mut tests);
+    regression::issue_10813::all_tests(&mut tests);
     render_pass_ownership::all_tests(&mut tests);
     render_target::all_tests(&mut tests);
     resource_descriptor_accessor::all_tests(&mut tests);
