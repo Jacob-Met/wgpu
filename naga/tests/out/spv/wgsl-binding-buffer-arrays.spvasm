@@ -36,6 +36,7 @@ OpDecorate %24 Flat
 OpDecorate %27 Location 0
 OpDecorate %60 NonUniform
 OpDecorate %87 NonUniform
+OpDecorate %107 NonUniform
 OpDecorate %133 NonUniform
 %2 = OpTypeVoid
 %3 = OpTypeInt 32 0

@@ -358,3 +358,50 @@ fn f16_io_polyfill_codegen() {
         "Expected 4 OpFConvert instructions for polyfilled I/O"
     );
 }
+
+#[test]
+fn array_length_binding_array_marks_nonuniform_access() {
+    use naga::{back::spv, valid};
+    use rspirv::dr::{load_words, Operand};
+
+    let source = r#"
+        enable wgpu_binding_array;
+        struct Words { data: array<u32> };
+        @group(0) @binding(0) var<storage, read> reads: binding_array<Words, 4>;
+        @group(0) @binding(1) var<storage, read_write> output: array<u32>;
+        @compute @workgroup_size(4)
+        fn main(@builtin(local_invocation_index) i: u32) {
+            output[i] = arrayLength(&reads[i].data);
+        }
+    "#;
+    let module = naga::front::wgsl::parse_str(source).unwrap();
+    let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::all())
+        .validate(&module)
+        .unwrap();
+    let words = spv::write_vec(&module, &info, &spv::Options::default(), None).unwrap();
+    let spirv = load_words(words).unwrap();
+
+    let array_length_pointer = spirv
+        .functions
+        .iter()
+        .flat_map(|function| &function.blocks)
+        .flat_map(|block| &block.instructions)
+        .find(|instruction| instruction.class.opcode == spirv::Op::ArrayLength)
+        .and_then(|instruction| match instruction.operands.first() {
+            Some(Operand::IdRef(id)) => Some(*id),
+            _ => None,
+        })
+        .expect("shader must contain OpArrayLength");
+
+    assert!(
+        spirv.annotations.iter().any(|instruction| {
+            instruction.class.opcode == spirv::Op::Decorate
+                && instruction.operands.as_slice()
+                    == [
+                        Operand::IdRef(array_length_pointer),
+                        Operand::Decoration(spirv::Decoration::NonUniform),
+                    ]
+        }),
+        "the pointer used by OpArrayLength must be decorated NonUniform"
+    );
+}
