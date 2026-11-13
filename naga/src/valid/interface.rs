@@ -111,6 +111,8 @@ pub enum VaryingError {
         blend_src_0_type: Handle<crate::Type>,
         blend_src_1_type: Handle<crate::Type>,
     },
+    #[error("A dual-source blending output struct must have exactly two members, found {count}")]
+    InvalidBlendSrcMemberCount { count: usize },
     #[error("`@blend_src` can only be used on struct members, not directly on entry point I/O")]
     BlendSrcNotOnStructMember,
     #[error("Workgroup size is multi dimensional, `@builtin(subgroup_id)` and `@builtin(subgroup_invocation_id)` are not supported.")]

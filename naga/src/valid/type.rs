@@ -844,6 +844,16 @@ impl super::Validator {
                                 super::VaryingError::InvalidBlendSrcWithOtherBindings { location },
                             ));
                         }
+                        // Dual-source outputs must contain exactly the two blend
+                        // sources. Extra members without attributes or using a
+                        // built-in binding are invalid entry-point I/O.
+                        if members.len() != 2 {
+                            return Err(TypeError::InvalidBlendSrc(
+                                super::VaryingError::InvalidBlendSrcMemberCount {
+                                    count: members.len(),
+                                },
+                            ));
+                        }
                         let ty0_inner = &gctx.types[ty0].inner;
                         let ty1_inner = &gctx.types[ty1].inner;
                         // The two blend sources must have the same type...

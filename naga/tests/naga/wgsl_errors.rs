@@ -2705,6 +2705,52 @@ fn invalid_blend_src() {
         ),
         Capabilities::DUAL_SOURCE_BLENDING
     }
+    // A third member without an I/O attribute was previously accepted by
+    // validation, then crashed the SPIR-V backend during output creation.
+    check_validation! {
+        "
+        enable dual_source_blending;
+        struct FragmentOutput {
+            @location(0) @blend_src(0) a: vec4<f32>,
+            @location(0) @blend_src(1) b: vec4<f32>,
+            c: f32,
+        }
+        @fragment
+        fn main() -> FragmentOutput { return FragmentOutput(); }
+        ":
+        Err(
+            ValidationError::Type {
+                source: TypeError::InvalidBlendSrc(
+                    VaryingError::InvalidBlendSrcMemberCount { count: 3 }
+                ),
+                ..
+            }
+        ),
+        Capabilities::DUAL_SOURCE_BLENDING
+    }
+
+    // A third built-in member must also be rejected.
+    check_validation! {
+        "
+        enable dual_source_blending;
+        struct FragmentOutput {
+            @location(0) @blend_src(0) a: vec4<f32>,
+            @location(0) @blend_src(1) b: vec4<f32>,
+            @builtin(frag_depth) depth: f32,
+        }
+        @fragment
+        fn main() -> FragmentOutput { return FragmentOutput(); }
+        ":
+        Err(
+            ValidationError::Type {
+                source: TypeError::InvalidBlendSrc(
+                    VaryingError::InvalidBlendSrcMemberCount { count: 3 }
+                ),
+                ..
+            }
+        ),
+        Capabilities::DUAL_SOURCE_BLENDING
+    }
 }
 
 #[test]
