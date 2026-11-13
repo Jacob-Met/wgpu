@@ -682,6 +682,10 @@ pub enum Error {
     Unimplemented(String), // TODO: Error used only during development
     #[error("{0}")]
     Custom(String),
+    #[error(
+        "storage buffer index {index} with byte stride {stride} exceeds the HLSL address range"
+    )]
+    StorageAccessOffsetOverflow { index: u32, stride: u32 },
     #[error("overrides should not be present at this stage")]
     Override,
     #[error(transparent)]

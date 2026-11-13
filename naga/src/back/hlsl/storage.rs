@@ -632,7 +632,13 @@ impl<W: fmt::Write> super::Writer<'_, W> {
                     SubAccess::Index { value, stride }
                 }
                 (Parent::Array { stride }, AccessIndex::Constant(index)) => {
-                    SubAccess::Offset(stride * index)
+                    // An out-of-range constant index must not wrap around to
+                    // another valid buffer element in release builds.
+                    SubAccess::Offset(
+                        stride
+                            .checked_mul(index)
+                            .ok_or(Error::StorageAccessOffsetOverflow { index, stride })?,
+                    )
                 }
                 (Parent::Struct(members), AccessIndex::Constant(index)) => {
                     SubAccess::Offset(members[index as usize].offset)
