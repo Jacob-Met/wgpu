@@ -32,9 +32,9 @@ void _ms_main(uint local_invocation_index : SV_GroupIndex)
 {
     mesh_output.vertex_count = 3u;
     mesh_output.primitive_count = 1u;
-    mesh_output.vertices_[0].position = float4(0.0, 1.0, 0.0, 1.0);
-    mesh_output.vertices_[1].position = float4(-1.0, -1.0, 0.0, 1.0);
-    mesh_output.vertices_[2].position = float4(1.0, -1.0, 0.0, 1.0);
+    mesh_output.vertices_[0].position = float4(0.0f, 1.0f, 0.0f, 1.0f);
+    mesh_output.vertices_[1].position = float4(-1.0f, -1.0f, 0.0f, 1.0f);
+    mesh_output.vertices_[2].position = float4(1.0f, -1.0f, 0.0f, 1.0f);
     mesh_output.primitives_[0].indices_ = uint3(0u, 1u, 2u);
     mesh_output.primitives_[0].index = 7u;
     return;
@@ -79,5 +79,5 @@ void ms_main(uint local_invocation_index : SV_GroupIndex, out indices uint3 tria
 float4 fs_main(FragmentInput_fs_main fragmentinput_fs_main) : SV_Target0
 {
     uint index = fragmentinput_fs_main.index_2;
-    return float4(float(index), 1.0, 1.0, 1.0);
+    return float4(float(index), 1.0f, 1.0f, 1.0f);
 }

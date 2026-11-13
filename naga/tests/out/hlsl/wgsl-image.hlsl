@@ -64,7 +64,7 @@ void main(uint3 local_id : SV_GroupThreadID)
 }
 
 uint naga_f2u32(float value) {
-    return uint(clamp(value, 0.0, 4294967000.0));
+    return uint(clamp(value, 0.0f, 4294967000.0f));
 }
 
 [numthreads(16, 1, 1)]
@@ -269,11 +269,11 @@ float4 texture_sample() : SV_Target0
 {
     float4 a = (float4)0;
 
-    float2 _e1 = (0.5).xx;
-    float3 _e3 = (0.5).xxx;
+    float2 _e1 = (0.5f).xx;
+    float3 _e3 = (0.5f).xxx;
     int2 _e6 = int2(int(3), int(1));
     float4 _e9 = a;
-    float4 _e12 = image_1d.Sample(sampler_reg, 0.5);
+    float4 _e12 = image_1d.Sample(sampler_reg, 0.5f);
     a = (_e9 + _e12);
     float4 _e14 = a;
     float4 _e17 = image_2d.Sample(sampler_reg, _e1);
@@ -282,13 +282,13 @@ float4 texture_sample() : SV_Target0
     float4 _e25 = image_2d.Sample(sampler_reg, _e1, int2(int2(int(3), int(1))));
     a = (_e19 + _e25);
     float4 _e27 = a;
-    float4 _e30 = image_2d.SampleLevel(sampler_reg, _e1, 2.3);
+    float4 _e30 = image_2d.SampleLevel(sampler_reg, _e1, 2.3f);
     a = (_e27 + _e30);
     float4 _e32 = a;
-    float4 _e35 = image_2d.SampleLevel(sampler_reg, _e1, 2.3, int2(int2(int(3), int(1))));
+    float4 _e35 = image_2d.SampleLevel(sampler_reg, _e1, 2.3f, int2(int2(int(3), int(1))));
     a = (_e32 + _e35);
     float4 _e37 = a;
-    float4 _e41 = image_2d.SampleBias(sampler_reg, _e1, 2.0, int2(int2(int(3), int(1))));
+    float4 _e41 = image_2d.SampleBias(sampler_reg, _e1, 2.0f, int2(int2(int(3), int(1))));
     a = (_e37 + _e41);
     float4 _e43 = a;
     float4 _e46 = image_2d.SampleGrad(sampler_reg, _e1, _e1, _e1);
@@ -303,13 +303,13 @@ float4 texture_sample() : SV_Target0
     float4 _e63 = image_2d_array.Sample(sampler_reg, float3(_e1, 0u), int2(int2(int(3), int(1))));
     a = (_e59 + _e63);
     float4 _e65 = a;
-    float4 _e69 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, 0u), 2.3);
+    float4 _e69 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, 0u), 2.3f);
     a = (_e65 + _e69);
     float4 _e71 = a;
-    float4 _e75 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, 0u), 2.3, int2(int2(int(3), int(1))));
+    float4 _e75 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, 0u), 2.3f, int2(int2(int(3), int(1))));
     a = (_e71 + _e75);
     float4 _e77 = a;
-    float4 _e82 = image_2d_array.SampleBias(sampler_reg, float3(_e1, 0u), 2.0, int2(int2(int(3), int(1))));
+    float4 _e82 = image_2d_array.SampleBias(sampler_reg, float3(_e1, 0u), 2.0f, int2(int2(int(3), int(1))));
     a = (_e77 + _e82);
     float4 _e84 = a;
     float4 _e88 = image_2d_array.Sample(sampler_reg, float3(_e1, int(0)));
@@ -318,13 +318,13 @@ float4 texture_sample() : SV_Target0
     float4 _e94 = image_2d_array.Sample(sampler_reg, float3(_e1, int(0)), int2(int2(int(3), int(1))));
     a = (_e90 + _e94);
     float4 _e96 = a;
-    float4 _e100 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, int(0)), 2.3);
+    float4 _e100 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, int(0)), 2.3f);
     a = (_e96 + _e100);
     float4 _e102 = a;
-    float4 _e106 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, int(0)), 2.3, int2(int2(int(3), int(1))));
+    float4 _e106 = image_2d_array.SampleLevel(sampler_reg, float3(_e1, int(0)), 2.3f, int2(int2(int(3), int(1))));
     a = (_e102 + _e106);
     float4 _e108 = a;
-    float4 _e113 = image_2d_array.SampleBias(sampler_reg, float3(_e1, int(0)), 2.0, int2(int2(int(3), int(1))));
+    float4 _e113 = image_2d_array.SampleBias(sampler_reg, float3(_e1, int(0)), 2.0f, int2(int2(int(3), int(1))));
     a = (_e108 + _e113);
     float4 _e115 = a;
     float4 _e118 = image_cube.SampleGrad(sampler_reg, _e3, _e3, _e3);
@@ -333,10 +333,10 @@ float4 texture_sample() : SV_Target0
     float4 _e124 = image_cube_array.Sample(sampler_reg, float4(_e3, 0u));
     a = (_e120 + _e124);
     float4 _e126 = a;
-    float4 _e130 = image_cube_array.SampleLevel(sampler_reg, float4(_e3, 0u), 2.3);
+    float4 _e130 = image_cube_array.SampleLevel(sampler_reg, float4(_e3, 0u), 2.3f);
     a = (_e126 + _e130);
     float4 _e132 = a;
-    float4 _e137 = image_cube_array.SampleBias(sampler_reg, float4(_e3, 0u), 2.0);
+    float4 _e137 = image_cube_array.SampleBias(sampler_reg, float4(_e3, 0u), 2.0f);
     a = (_e132 + _e137);
     float4 _e139 = a;
     float4 _e143 = image_cube_array.SampleGrad(sampler_reg, float4(_e3, 0u), _e3, _e3);
@@ -345,10 +345,10 @@ float4 texture_sample() : SV_Target0
     float4 _e149 = image_cube_array.Sample(sampler_reg, float4(_e3, int(0)));
     a = (_e145 + _e149);
     float4 _e151 = a;
-    float4 _e155 = image_cube_array.SampleLevel(sampler_reg, float4(_e3, int(0)), 2.3);
+    float4 _e155 = image_cube_array.SampleLevel(sampler_reg, float4(_e3, int(0)), 2.3f);
     a = (_e151 + _e155);
     float4 _e157 = a;
-    float4 _e162 = image_cube_array.SampleBias(sampler_reg, float4(_e3, int(0)), 2.0);
+    float4 _e162 = image_cube_array.SampleBias(sampler_reg, float4(_e3, int(0)), 2.0f);
     a = (_e157 + _e162);
     float4 _e164 = a;
     float4 _e168 = image_cube_array.SampleGrad(sampler_reg, float4(_e3, int(0)), _e3, _e3);
@@ -364,31 +364,31 @@ float texture_sample_comparison() : SV_Target0
 {
     float a_1 = (float)0;
 
-    float2 tc = (0.5).xx;
-    float3 tc3_ = (0.5).xxx;
+    float2 tc = (0.5f).xx;
+    float3 tc3_ = (0.5f).xxx;
     float _e6 = a_1;
-    float _e9 = image_2d_depth.SampleCmp(sampler_cmp, tc, 0.5);
+    float _e9 = image_2d_depth.SampleCmp(sampler_cmp, tc, 0.5f);
     a_1 = (_e6 + _e9);
     float _e11 = a_1;
-    float _e15 = image_2d_array_depth.SampleCmp(sampler_cmp, float3(tc, 0u), 0.5);
+    float _e15 = image_2d_array_depth.SampleCmp(sampler_cmp, float3(tc, 0u), 0.5f);
     a_1 = (_e11 + _e15);
     float _e17 = a_1;
-    float _e21 = image_2d_array_depth.SampleCmp(sampler_cmp, float3(tc, int(0)), 0.5);
+    float _e21 = image_2d_array_depth.SampleCmp(sampler_cmp, float3(tc, int(0)), 0.5f);
     a_1 = (_e17 + _e21);
     float _e23 = a_1;
-    float _e26 = image_cube_depth.SampleCmp(sampler_cmp, tc3_, 0.5);
+    float _e26 = image_cube_depth.SampleCmp(sampler_cmp, tc3_, 0.5f);
     a_1 = (_e23 + _e26);
     float _e28 = a_1;
-    float _e31 = image_2d_depth.SampleCmpLevelZero(sampler_cmp, tc, 0.5);
+    float _e31 = image_2d_depth.SampleCmpLevelZero(sampler_cmp, tc, 0.5f);
     a_1 = (_e28 + _e31);
     float _e33 = a_1;
-    float _e37 = image_2d_array_depth.SampleCmpLevelZero(sampler_cmp, float3(tc, 0u), 0.5);
+    float _e37 = image_2d_array_depth.SampleCmpLevelZero(sampler_cmp, float3(tc, 0u), 0.5f);
     a_1 = (_e33 + _e37);
     float _e39 = a_1;
-    float _e43 = image_2d_array_depth.SampleCmpLevelZero(sampler_cmp, float3(tc, int(0)), 0.5);
+    float _e43 = image_2d_array_depth.SampleCmpLevelZero(sampler_cmp, float3(tc, int(0)), 0.5f);
     a_1 = (_e39 + _e43);
     float _e45 = a_1;
-    float _e48 = image_cube_depth.SampleCmpLevelZero(sampler_cmp, tc3_, 0.5);
+    float _e48 = image_cube_depth.SampleCmpLevelZero(sampler_cmp, tc3_, 0.5f);
     a_1 = (_e45 + _e48);
     float _e50 = a_1;
     return _e50;
@@ -396,11 +396,11 @@ float texture_sample_comparison() : SV_Target0
 
 float4 gather() : SV_Target0
 {
-    float2 tc_1 = (0.5).xx;
+    float2 tc_1 = (0.5f).xx;
     float4 s2d = image_2d.GatherGreen(sampler_reg, tc_1);
     float4 s2d_offset = image_2d.GatherAlpha(sampler_reg, tc_1, int2(int2(int(3), int(1))));
-    float4 s2d_depth = image_2d_depth.GatherCmp(sampler_cmp, tc_1, 0.5);
-    float4 s2d_depth_offset = image_2d_depth.GatherCmp(sampler_cmp, tc_1, 0.5, int2(int2(int(3), int(1))));
+    float4 s2d_depth = image_2d_depth.GatherCmp(sampler_cmp, tc_1, 0.5f);
+    float4 s2d_depth_offset = image_2d_depth.GatherCmp(sampler_cmp, tc_1, 0.5f, int2(int2(int(3), int(1))));
     uint4 u = image_2d_u32_.Gather(sampler_reg, tc_1);
     int4 i = image_2d_i32_.Gather(sampler_reg, tc_1);
     float4 f = (float4(u) + float4(i));
@@ -409,7 +409,7 @@ float4 gather() : SV_Target0
 
 float4 depth_no_comparison() : SV_Target0
 {
-    float2 tc_2 = (0.5).xx;
+    float2 tc_2 = (0.5f).xx;
     float s2d_1 = image_2d_depth.Sample(sampler_reg, tc_2);
     float4 s2d_gather = image_2d_depth.Gather(sampler_reg, tc_2);
     float s2d_level = image_2d_depth.SampleLevel(sampler_reg, tc_2, int(1));

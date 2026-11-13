@@ -160,9 +160,9 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
     ok = _e15;
     bool _e17 = ok;
     float3 _e20 = matrix_[0];
-    if (all((_e20 == (0.0).xxx))) {
+    if (all((_e20 == (0.0f).xxx))) {
         float3 _e29 = matrix_[1];
-        local_1 = all((_e29 == (0.0).xxx));
+        local_1 = all((_e29 == (0.0f).xxx));
     } else {
         local_1 = false;
     }
@@ -170,9 +170,9 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
     ok = (_e17 & _e35);
     bool _e37 = ok;
     float2 _e41 = tagged.matrix_[0];
-    if (all((_e41 == (0.0).xx))) {
+    if (all((_e41 == (0.0f).xx))) {
         float2 _e51 = tagged.matrix_[1];
-        local_2 = all((_e51 == (0.0).xx));
+        local_2 = all((_e51 == (0.0f).xx));
     } else {
         local_2 = false;
     }
@@ -233,7 +233,7 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
                             uint _e79 = j;
                             uint _e81 = k;
                             float4 _e83 = data[min(uint(_e76), 2u)].values[min(uint(_e79), 4u)][min(uint(_e81), 2u)];
-                            ok = (_e74 & all((_e83 == (0.0).xxxx)));
+                            ok = (_e74 & all((_e83 == (0.0f).xxxx)));
                         }
                     }
                 }
@@ -283,17 +283,17 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
                     uint _e121 = i;
                     uint _e124 = j_2;
                     float2 _e126 = GetMatmatrix_OnInner(data[min(uint(_e121), 2u)])[min(uint(_e124), 2u)];
-                    ok = (_e119 & all((_e126 == (0.0).xx)));
+                    ok = (_e119 & all((_e126 == (0.0f).xx)));
                     bool _e132 = ok;
                     uint _e134 = i;
                     uint _e137 = j_2;
                     float2 _e140 = data[min(uint(_e134), 2u)].matrices[min(uint(_e137), 2u)]._0;
-                    ok = (_e132 & all((_e140 == (0.0).xx)));
+                    ok = (_e132 & all((_e140 == (0.0f).xx)));
                     bool _e146 = ok;
                     uint _e148 = i;
                     uint _e151 = j_2;
                     float2 _e154 = data[min(uint(_e148), 2u)].matrices[min(uint(_e151), 2u)]._1;
-                    ok = (_e146 & all((_e154 == (0.0).xx)));
+                    ok = (_e146 & all((_e154 == (0.0f).xx)));
                 }
             }
         }
@@ -321,14 +321,14 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
             bool _e179 = ok;
             uint _e181 = i_1;
             float _e183 = floats[min(uint(_e181), 36u)];
-            ok = (_e179 & (_e183 == 0.0));
+            ok = (_e179 & (_e183 == 0.0f));
         }
     }
     GroupMemoryBarrierWithGroupSync();
     if ((zero_flat_index == 0u)) {
         scalar = 42u;
         vector_ = (42u).xxx;
-        matrix_ = float2x3((42.0).xxx, (42.0).xxx);
+        matrix_ = float2x3((42.0f).xxx, (42.0f).xxx);
         uint2 loop_bound_6 = uint2(4294967295u, 4294967295u);
         bool loop_init_6 = true;
         while(true) {
@@ -382,7 +382,7 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
                                 uint _e219 = i_2;
                                 uint _e222 = j_3;
                                 uint _e224 = k_1;
-                                data[min(uint(_e219), 2u)].values[min(uint(_e222), 4u)][min(uint(_e224), 2u)] = (42.0).xxxx;
+                                data[min(uint(_e219), 2u)].values[min(uint(_e222), 4u)][min(uint(_e224), 2u)] = (42.0f).xxxx;
                             }
                         }
                     }
@@ -430,7 +430,7 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
                 uint _e258 = i_3;
                 dynamic[min(uint(_e258), 36u)] = 42u;
                 uint _e262 = i_3;
-                floats[min(uint(_e262), 36u)] = 42.0;
+                floats[min(uint(_e262), 36u)] = 42.0f;
             }
         }
     }
@@ -447,10 +447,10 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
     ok = (_e268 & _e282);
     bool _e284 = ok;
     float3 _e287 = matrix_[0];
-    ok = (_e284 & all((_e287 == (42.0).xxx)));
+    ok = (_e284 & all((_e287 == (42.0f).xxx)));
     bool _e293 = ok;
     float4 _e299 = data[2].values[4][2];
-    ok = (_e293 & all((_e299 == (42.0).xxxx)));
+    ok = (_e293 & all((_e299 == (42.0f).xxxx)));
     bool _e305 = ok;
     uint _e310; InterlockedOr(data[2].atoms[18], 0, _e310);
     ok = (_e305 & (_e310 == 42u));
@@ -459,7 +459,7 @@ void main(uint zero_flat_index : SV_GroupIndex, uint3 group : SV_GroupID)
     ok = (_e314 & (_e321 == 42u));
     bool _e325 = ok;
     float _e332 = floats[36u];
-    ok = (_e325 & (_e332 == 42.0));
+    ok = (_e325 & (_e332 == 42.0f));
     uint index = (((group.x * width) * height) + zero_flat_index);
     uint _e344 = asuint(output.Load(index*4));
     bool _e347 = ok;

@@ -53,7 +53,7 @@ float4 vert_main(float2 pos : LOC0, uint ii : SV_InstanceID, uint vi : SV_Vertex
 {
     im_vert = ConstructImmediateDataVert(asfloat(im_vert_raw[0].x), float3x3(float3(asfloat(im_vert_raw[1].x), asfloat(im_vert_raw[1].y), asfloat(im_vert_raw[1].z)), float3(asfloat(im_vert_raw[2].x), asfloat(im_vert_raw[2].y), asfloat(im_vert_raw[2].z)), float3(asfloat(im_vert_raw[3].x), asfloat(im_vert_raw[3].y), asfloat(im_vert_raw[3].z))));
     float _e9 = im_vert.position_clip;
-    return float4(((float((_NagaConstants.first_instance + ii)) * float((_NagaConstants.first_vertex + vi))) * pos), 0.0, _e9);
+    return float4(((float((_NagaConstants.first_instance + ii)) * float((_NagaConstants.first_vertex + vi))) * pos), 0.0f, _e9);
 }
 
 float4 main(FragmentInput_main fragmentinput_main) : SV_Target0

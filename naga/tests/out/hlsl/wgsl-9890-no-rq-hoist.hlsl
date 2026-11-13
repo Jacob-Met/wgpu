@@ -57,7 +57,7 @@ void main()
             naga_query_init_tracker_for_sq = 0u;
             uint _e9 = i;
             {
-                RayDesc_ naga_desc = ConstructRayDesc_(1u, 255u, 0.001, 1000.0, (float(_e9)).xxx, float3(0.0, -1.0, 0.0));
+                RayDesc_ naga_desc = ConstructRayDesc_(1u, 255u, 0.001f, 1000.0f, (float(_e9)).xxx, float3(0.0f, -1.0f, 0.0f));
                 float naga_tmin = naga_desc.tmin;
                 float naga_tmax = naga_desc.tmax;
                 float3 naga_origin = naga_desc.origin;
