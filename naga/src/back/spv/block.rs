@@ -2417,6 +2417,49 @@ impl BlockContext<'_> {
             }
         };
 
+        // For widening conversions across signedness, SPIR-V must extend
+        // according to the source type before reinterpreting the result.
+        // Converting directly to the destination signedness would sign-extend
+        // unsigned values or zero-extend negative signed values.
+        if src_scalar.width < dst_width
+            && matches!(
+                (src_scalar.kind, kind),
+                (Sk::Uint, Sk::Sint) | (Sk::Sint, Sk::Uint)
+            )
+        {
+            let intermediate_scalar = crate::Scalar {
+                kind: src_scalar.kind,
+                width: dst_width,
+            };
+            let intermediate_type_id = self.get_numeric_type_id(match src_size {
+                Some(size) => NumericType::Vector {
+                    size,
+                    scalar: intermediate_scalar,
+                },
+                None => NumericType::Scalar(intermediate_scalar),
+            });
+            let convert_op = match src_scalar.kind {
+                Sk::Sint => spirv::Op::SConvert,
+                Sk::Uint => spirv::Op::UConvert,
+                _ => unreachable!(),
+            };
+            let converted_id = self.gen_id();
+            block.body.push(Instruction::unary(
+                convert_op,
+                intermediate_type_id,
+                converted_id,
+                expr_id,
+            ));
+            let result_id = self.gen_id();
+            block.body.push(Instruction::unary(
+                spirv::Op::Bitcast,
+                result_type_id,
+                result_id,
+                converted_id,
+            ));
+            return Ok(result_id);
+        }
+
         enum Cast {
             Identity(Word),
             Unary(spirv::Op, Word),

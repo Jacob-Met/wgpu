@@ -358,3 +358,81 @@ fn f16_io_polyfill_codegen() {
         "Expected 4 OpFConvert instructions for polyfilled I/O"
     );
 }
+
+#[test]
+fn integer_widening_across_signedness_extends_from_source_type() {
+    use naga::{back::spv, valid};
+    use rspirv::dr::{load_words, Operand};
+
+    let source = r#"
+        @group(0) @binding(0) var<storage, read> unsigned_input: array<u32>;
+        @group(0) @binding(1) var<storage, read> signed_input: array<i32>;
+        @group(0) @binding(2) var<storage, read_write> output: array<u32>;
+
+        @compute @workgroup_size(1)
+        fn main() {
+            let signed = i64(unsigned_input[0]);
+            let unsigned = u64(signed_input[0]);
+            output[0] = u32(signed >> 32u);
+            output[1] = u32(unsigned >> 32u);
+        }
+    "#;
+
+    let module = naga::front::wgsl::parse_str(source).unwrap();
+    let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::all())
+        .validate(&module)
+        .unwrap();
+    let words = spv::write_vec(&module, &info, &spv::Options::default(), None).unwrap();
+    let spirv = load_words(words).unwrap();
+
+    let int64_type = |signedness| {
+        spirv
+            .types_global_values
+            .iter()
+            .find_map(|instruction| {
+                if instruction.class.opcode != spirv::Op::TypeInt {
+                    return None;
+                }
+                match instruction.operands.as_slice() {
+                    [Operand::LiteralBit32(64), Operand::LiteralBit32(s)] if *s == signedness => {
+                        instruction.result_id
+                    }
+                    _ => None,
+                }
+            })
+            .expect("missing 64-bit integer type")
+    };
+    let signed64 = int64_type(1);
+    let unsigned64 = int64_type(0);
+
+    let instructions: Vec<_> = spirv
+        .functions
+        .iter()
+        .flat_map(|function| &function.blocks)
+        .flat_map(|block| &block.instructions)
+        .collect();
+
+    // A widening conversion must extend in the source signedness, then
+    // reinterpret the bits as the destination signedness.
+    for (convert_op, intermediate_type, result_type) in [
+        (spirv::Op::UConvert, unsigned64, signed64),
+        (spirv::Op::SConvert, signed64, unsigned64),
+    ] {
+        let converted = instructions
+            .iter()
+            .find(|instruction| {
+                instruction.class.opcode == convert_op
+                    && instruction.result_type == Some(intermediate_type)
+            })
+            .expect("widening conversion used the wrong signedness");
+        let converted_id = converted.result_id.unwrap();
+        assert!(
+            instructions.iter().any(|instruction| {
+                instruction.class.opcode == spirv::Op::Bitcast
+                    && instruction.result_type == Some(result_type)
+                    && instruction.operands.first() == Some(&Operand::IdRef(converted_id))
+            }),
+            "widening conversion must bitcast to the requested signedness"
+        );
+    }
+}
