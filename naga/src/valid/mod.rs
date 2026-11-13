@@ -40,6 +40,10 @@ use self::handles::InvalidHandleError;
 /// Maximum size of a type, in bytes.
 pub const MAX_TYPE_SIZE: u32 = i32::MAX as u32;
 
+// Prevent small function-call DAGs from expanding into enormous shader bodies
+// in drivers that inline calls before compiling machine code.
+const MAX_EXPANDED_OPERATIONS: u64 = 1_000_000;
+
 bitflags::bitflags! {
     /// Validation flags.
     ///
@@ -538,6 +542,8 @@ pub enum ValidationError {
         name: String,
         source: EntryPointError,
     },
+    #[error("Entry point '{name}' expands to more than {limit} shader operations when functions are inlined")]
+    ExcessiveInlining { name: String, limit: u64 },
     #[error("Module is corrupted")]
     Corrupted,
 }
@@ -931,8 +937,76 @@ impl Validator {
             }
         }
 
+        // A small call graph can require exponentially large machine code
+        // when a shader compiler inlines every function call.
+        let mut function_costs = Vec::with_capacity(module.functions.len());
+        for (_, function) in module.functions.iter() {
+            // Functions are validated in call order, so callee costs are
+            // available before the caller. Cap costs to avoid overflow.
+            function_costs.push(inlining_cost(function, &function_costs));
+        }
+        for entry_point in &module.entry_points {
+            if inlining_cost(&entry_point.function, &function_costs) > MAX_EXPANDED_OPERATIONS {
+                return Err(Box::new(
+                    ValidationError::ExcessiveInlining {
+                        name: entry_point.name.clone(),
+                        limit: MAX_EXPANDED_OPERATIONS,
+                    }
+                    .with_span(),
+                ));
+            }
+        }
+
         Ok(mod_info)
     }
+}
+
+/// Estimate the number of operations produced by fully inlining a function.
+/// This visits each Naga IR statement once, without expanding the call graph.
+fn inlining_cost(function: &crate::Function, previous_costs: &[u64]) -> u64 {
+    let mut total =
+        (function.expressions.len() as u64).saturating_add(function.local_variables.len() as u64);
+    let mut pending = vec![&function.body];
+    while let Some(block) = pending.pop() {
+        for statement in block.iter() {
+            total = total.saturating_add(1);
+            match *statement {
+                crate::Statement::Block(ref body) => pending.push(body),
+                crate::Statement::If {
+                    ref accept,
+                    ref reject,
+                    ..
+                } => {
+                    pending.push(accept);
+                    pending.push(reject);
+                }
+                crate::Statement::Switch { ref cases, .. } => {
+                    pending.extend(cases.iter().map(|case| &case.body));
+                }
+                crate::Statement::Loop {
+                    ref body,
+                    ref continuing,
+                    ..
+                } => {
+                    pending.push(body);
+                    pending.push(continuing);
+                }
+                crate::Statement::Call { function, .. } => {
+                    total = total.saturating_add(
+                        previous_costs
+                            .get(function.index())
+                            .copied()
+                            .unwrap_or(MAX_EXPANDED_OPERATIONS + 1),
+                    );
+                }
+                _ => {}
+            }
+            if total > MAX_EXPANDED_OPERATIONS {
+                return MAX_EXPANDED_OPERATIONS + 1;
+            }
+        }
+    }
+    total
 }
 
 fn validate_atomic_compare_exchange_struct(

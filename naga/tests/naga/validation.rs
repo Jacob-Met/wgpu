@@ -2200,3 +2200,48 @@ fn spv_longest_entry_point_name() {
 fn spv_entry_point_name_too_long() {
     write_spv_with_entry_point_name_len(LONGEST_SPV_ENTRY_POINT_NAME_LEN + 1);
 }
+
+fn deeply_nested_calls(depth: usize) -> String {
+    let mut source = String::from("fn f0(p: ptr<function, f32>) { *p += 1.0; }\n");
+    for i in 1..depth {
+        source.push_str(&format!(
+            "fn f{i}(p: ptr<function, f32>) {{ f{}(p); f{}(p); }}\n",
+            i - 1,
+            i - 1
+        ));
+    }
+    source.push_str(&format!(
+        "@compute @workgroup_size(1) fn main() {{ var v: f32; f{}(&v); }}",
+        depth - 1
+    ));
+    source
+}
+
+#[test]
+fn exponentially_expanding_call_graph_is_rejected() {
+    let module = naga::front::wgsl::parse_str(&deeply_nested_calls(23)).unwrap();
+    let err = valid::Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(&module)
+        .expect_err("exponential inlining should be rejected before driver compilation");
+    assert!(
+        err.to_string().contains("expands to more than"),
+        "unexpected validation error: {err}"
+    );
+}
+
+#[test]
+fn moderate_call_expansion_remains_valid() {
+    let module = naga::front::wgsl::parse_str(&deeply_nested_calls(15)).unwrap();
+    valid::Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(&module)
+        .expect("normal-sized inlining should remain valid");
+}
+
+#[test]
+fn unreachable_large_call_graph_does_not_block_entrypoint() {
+    let source = deeply_nested_calls(23).replace("f22(&v);", "");
+    let module = naga::front::wgsl::parse_str(&source).unwrap();
+    valid::Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(&module)
+        .expect("unused code should not cause a shader compiler to inline millions of calls");
+}
