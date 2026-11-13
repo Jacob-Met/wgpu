@@ -517,3 +517,52 @@ fn array_length_binding_array_marks_nonuniform_access() {
         "the pointer used by OpArrayLength must be decorated NonUniform"
     );
 }
+
+#[test]
+fn int64_leading_bit_builtins_use_integer_polyfill() {
+    use naga::{back::spv, valid};
+    use spirv::Op;
+
+    // Scalar and vector paths, each for signed and unsigned 64-bit integers.
+    // The GLSL.std.450 FindUMsb/FindSMsb instructions do not accept these
+    // types; the output must use legal core integer instructions instead.
+    let source = r#"
+        @group(0) @binding(0) var<storage, read_write> signed: array<i64>;
+        @group(0) @binding(1) var<storage, read_write> unsigned: array<u64>;
+        @group(0) @binding(2) var<storage, read_write> signed_vec: array<vec2<i64>>;
+        @group(0) @binding(3) var<storage, read_write> unsigned_vec: array<vec2<u64>>;
+
+        @compute @workgroup_size(1)
+        fn main() {
+            let s = signed[0];
+            signed[1] = countLeadingZeros(s);
+            signed[2] = firstLeadingBit(s);
+            let u = unsigned[0];
+            unsigned[1] = countLeadingZeros(u);
+            unsigned[2] = firstLeadingBit(u);
+            let sv = signed_vec[0];
+            signed_vec[1] = countLeadingZeros(sv);
+            signed_vec[2] = firstLeadingBit(sv);
+            let uv = unsigned_vec[0];
+            unsigned_vec[1] = countLeadingZeros(uv);
+            unsigned_vec[2] = firstLeadingBit(uv);
+        }
+    "#;
+
+    let module = naga::front::wgsl::parse_str(source).unwrap();
+    let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::all())
+        .validate(&module)
+        .unwrap();
+    let words = spv::write_vec(&module, &info, &spv::Options::default(), None).unwrap();
+    let parsed = rspirv::dr::load_words(&words).unwrap();
+    let ops: Vec<_> = parsed
+        .all_inst_iter()
+        .map(|inst| inst.class.opcode)
+        .collect();
+
+    assert!(ops.contains(&Op::BitCount));
+    assert!(ops.contains(&Op::ShiftRightLogical));
+    assert!(ops.contains(&Op::ShiftRightArithmetic));
+    assert!(ops.contains(&Op::BitwiseXor));
+    assert!(ops.contains(&Op::BitwiseOr));
+}

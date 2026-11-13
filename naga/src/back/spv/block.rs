@@ -278,6 +278,119 @@ impl Writer {
 }
 
 impl BlockContext<'_> {
+    /// Build a scalar or vector integer constant with the operand's shape.
+    fn bit_scan_constant(
+        &mut self,
+        size: Option<crate::VectorSize>,
+        scalar: crate::Scalar,
+        value: u8,
+    ) -> Result<Word, Error> {
+        let id = self.writer.get_constant_scalar_with(value, scalar)?;
+        if let Some(size) = size {
+            let ty = LocalType::Numeric(NumericType::Vector { size, scalar }).into();
+            self.temp_list.clear();
+            self.temp_list.resize(size as usize, id);
+            Ok(self.writer.get_constant_composite(ty, &self.temp_list))
+        } else {
+            Ok(id)
+        }
+    }
+
+    /// SPIR-V's GLSL.std.450 FindUMsb/FindSMsb instructions only handle
+    /// 32-bit integers. Saturating the bits below the leading one lets
+    /// OpBitCount calculate leading zeros / the first leading bit at any
+    /// supported integer width, including vectors and signed inputs.
+    fn write_bit_scan_polyfill(
+        &mut self,
+        block: &mut Block,
+        arg_id: Word,
+        result_type_id: Word,
+        result_id: Word,
+        size: Option<crate::VectorSize>,
+        scalar: crate::Scalar,
+        first_leading_bit: bool,
+    ) -> Result<Instruction, Error> {
+        let bit_width = scalar.width * 8;
+        let mut bits_id = arg_id;
+
+        // For signed values, firstLeadingBit finds the highest bit that
+        // differs from the sign bit. Complement all negative operands.
+        if first_leading_bit && scalar.kind == crate::ScalarKind::Sint {
+            let shift = self.bit_scan_constant(size, scalar, bit_width - 1)?;
+            let mask_id = self.gen_id();
+            block.body.push(Instruction::binary(
+                spirv::Op::ShiftRightArithmetic,
+                result_type_id,
+                mask_id,
+                bits_id,
+                shift,
+            ));
+            let normalized_id = self.gen_id();
+            block.body.push(Instruction::binary(
+                spirv::Op::BitwiseXor,
+                result_type_id,
+                normalized_id,
+                bits_id,
+                mask_id,
+            ));
+            bits_id = normalized_id;
+        }
+
+        for shift in [1u8, 2, 4, 8, 16, 32] {
+            if shift >= bit_width {
+                break;
+            }
+            let shift_id = self.bit_scan_constant(size, scalar, shift)?;
+            let shifted_id = self.gen_id();
+            block.body.push(Instruction::binary(
+                spirv::Op::ShiftRightLogical,
+                result_type_id,
+                shifted_id,
+                bits_id,
+                shift_id,
+            ));
+            let saturated_id = self.gen_id();
+            block.body.push(Instruction::binary(
+                spirv::Op::BitwiseOr,
+                result_type_id,
+                saturated_id,
+                bits_id,
+                shifted_id,
+            ));
+            bits_id = saturated_id;
+        }
+
+        let count_id = self.gen_id();
+        block.body.push(Instruction::unary(
+            spirv::Op::BitCount,
+            result_type_id,
+            count_id,
+            bits_id,
+        ));
+
+        // A zero input produces a count of zero, so firstLeadingBit
+        // returns -1 (all bits set) automatically.
+        if first_leading_bit {
+            let one = self.bit_scan_constant(size, scalar, 1)?;
+            Ok(Instruction::binary(
+                spirv::Op::ISub,
+                result_type_id,
+                result_id,
+                count_id,
+                one,
+            ))
+        } else {
+            let width = self.bit_scan_constant(size, scalar, bit_width)?;
+            Ok(Instruction::binary(
+                spirv::Op::ISub,
+                result_type_id,
+                result_id,
+                width,
+                count_id,
+            ))
+        }
+    }
+
     /// Generates code to ensure that a loop is bounded. Should be called immediately
     /// after adding the OpLoopMerge instruction to `block`. This function will
     /// [`consume()`](crate::back::spv::Function::consume) `block` and append its
@@ -1757,8 +1870,24 @@ impl BlockContext<'_> {
                             &[uint_id, lsb_id],
                         ))
                     }
+                    Mf::CountLeadingZeros if arg_ty.scalar_width() != Some(4) => {
+                        let (size, scalar) = match *arg_ty {
+                            crate::TypeInner::Vector { size, scalar } => (Some(size), scalar),
+                            crate::TypeInner::Scalar(scalar) => (None, scalar),
+                            _ => unreachable!(),
+                        };
+                        MathOp::Custom(self.write_bit_scan_polyfill(
+                            block,
+                            arg0_id,
+                            result_type_id,
+                            id,
+                            size,
+                            scalar,
+                            false,
+                        )?)
+                    }
                     Mf::CountLeadingZeros => {
-                        let (int_type_id, int_id, width) = match *arg_ty {
+                        let (int_type_id, int_id) = match *arg_ty {
                             crate::TypeInner::Vector { size, scalar } => {
                                 let ty =
                                     LocalType::Numeric(NumericType::Vector { size, scalar }).into();
@@ -1773,30 +1902,20 @@ impl BlockContext<'_> {
                                 (
                                     self.get_type_id(ty),
                                     self.writer.get_constant_composite(ty, &self.temp_list),
-                                    scalar.width,
                                 )
                             }
                             crate::TypeInner::Scalar(scalar) => (
                                 self.get_numeric_type_id(NumericType::Scalar(scalar)),
                                 self.writer
                                     .get_constant_scalar_with(scalar.width * 8 - 1, scalar)?,
-                                scalar.width,
                             ),
                             _ => unreachable!(),
-                        };
-
-                        if width != 4 {
-                            unreachable!("This is validated out until a polyfill is implemented. https://github.com/gfx-rs/wgpu/issues/5276");
                         };
 
                         let msb_id = self.gen_id();
                         block.body.push(Instruction::ext_inst_gl_op(
                             self.writer.gl450_ext_inst_id,
-                            if width != 4 {
-                                spirv::GlslStd450Op::FindILsb
-                            } else {
-                                spirv::GlslStd450Op::FindUMsb
-                            },
+                            spirv::GlslStd450Op::FindUMsb,
                             int_type_id,
                             msb_id,
                             &[arg0_id],
@@ -1937,15 +2056,28 @@ impl BlockContext<'_> {
                     }
                     Mf::FirstTrailingBit => MathOp::Ext(spirv::GlslStd450Op::FindILsb),
                     Mf::FirstLeadingBit => {
-                        if arg_ty.scalar_width() == Some(4) {
+                        if arg_ty.scalar_width() != Some(4) {
+                            let (size, scalar) = match *arg_ty {
+                                crate::TypeInner::Vector { size, scalar } => (Some(size), scalar),
+                                crate::TypeInner::Scalar(scalar) => (None, scalar),
+                                _ => unreachable!(),
+                            };
+                            MathOp::Custom(self.write_bit_scan_polyfill(
+                                block,
+                                arg0_id,
+                                result_type_id,
+                                id,
+                                size,
+                                scalar,
+                                true,
+                            )?)
+                        } else {
                             let thing = match arg_scalar_kind {
                                 Some(crate::ScalarKind::Uint) => spirv::GlslStd450Op::FindUMsb,
                                 Some(crate::ScalarKind::Sint) => spirv::GlslStd450Op::FindSMsb,
                                 other => unimplemented!("Unexpected firstLeadingBit({:?})", other),
                             };
                             MathOp::Ext(thing)
-                        } else {
-                            unreachable!("This is validated out until a polyfill is implemented. https://github.com/gfx-rs/wgpu/issues/5276");
                         }
                     }
                     Mf::Pack4x8unorm => MathOp::Ext(spirv::GlslStd450Op::PackUnorm4x8),
