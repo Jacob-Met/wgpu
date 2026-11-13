@@ -375,6 +375,12 @@ fn integer_widening_across_signedness_extends_from_source_type() {
             let unsigned = u64(signed_input[0]);
             output[0] = u32(signed >> 32u);
             output[1] = u32(unsigned >> 32u);
+            let unsigned_vec = vec2<u32>(unsigned_input[1], unsigned_input[2]);
+            let signed_vec = vec2<i32>(signed_input[1], signed_input[2]);
+            let signed_wide_vec = vec2<i64>(unsigned_vec);
+            let unsigned_wide_vec = vec2<u64>(signed_vec);
+            output[2] = u32(signed_wide_vec.y >> 32u);
+            output[3] = u32(unsigned_wide_vec.y >> 32u);
         }
     "#;
 
@@ -405,6 +411,24 @@ fn integer_widening_across_signedness_extends_from_source_type() {
     let signed64 = int64_type(1);
     let unsigned64 = int64_type(0);
 
+    let vector_of = |scalar_id| {
+        spirv
+            .types_global_values
+            .iter()
+            .find_map(|instruction| {
+                if instruction.class.opcode != spirv::Op::TypeVector {
+                    return None;
+                }
+                match instruction.operands.as_slice() {
+                    [Operand::IdRef(id), Operand::LiteralBit32(2)] if *id == scalar_id => {
+                        instruction.result_id
+                    }
+                    _ => None,
+                }
+            })
+            .expect("missing 64-bit vector type")
+    };
+
     let instructions: Vec<_> = spirv
         .functions
         .iter()
@@ -417,6 +441,16 @@ fn integer_widening_across_signedness_extends_from_source_type() {
     for (convert_op, intermediate_type, result_type) in [
         (spirv::Op::UConvert, unsigned64, signed64),
         (spirv::Op::SConvert, signed64, unsigned64),
+        (
+            spirv::Op::UConvert,
+            vector_of(unsigned64),
+            vector_of(signed64),
+        ),
+        (
+            spirv::Op::SConvert,
+            vector_of(signed64),
+            vector_of(unsigned64),
+        ),
     ] {
         let converted = instructions
             .iter()

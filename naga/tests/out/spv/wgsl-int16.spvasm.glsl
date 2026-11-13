@@ -58,45 +58,45 @@ layout(set = 0, binding = 4, std430) buffer _39_38
 int16_t _24 = 1s;
 shared uint16_t _41;
 
-uint16_t _242(uint16_t _244, uint16_t _245)
+uint16_t _243(uint16_t _245, uint16_t _246)
 {
-    return _244 / ((_245 == 0us) ? 1us : _245);
+    return _245 / ((_246 == 0us) ? 1us : _246);
 }
 
-uint16_t _251(uint16_t _252, uint16_t _253)
+uint16_t _252(uint16_t _253, uint16_t _254)
 {
-    return _252 % ((_253 == 0us) ? 1us : _253);
+    return _253 % ((_254 == 0us) ? 1us : _254);
 }
 
-uint16_t _260(uint16_t _259)
+uint16_t _261(uint16_t _260)
 {
-    uint16_t _273 = 20us;
-    _273 += 5us;
-    _273 += uint16_t(_26._m0._m0);
-    _273 += uint16_t(_26._m0._m1);
-    _273 += u16vec3(_26._m0._m3).z;
+    uint16_t _274 = 20us;
+    _274 += 5us;
+    _274 += uint16_t(_26._m0._m0);
+    _274 += uint16_t(_26._m0._m1);
+    _274 += u16vec3(_26._m0._m3).z;
     _35._m0._m3 = _26._m0._m3 + _29._m0._m3;
     _35._m0._m4 = _26._m0._m4 + _29._m0._m4;
     _35._m0._m5 = _26._m0._m5 + _29._m0._m5;
     _35._m0._m6 = _26._m0._m6 + _29._m0._m6;
     _38._m0._m0 = _32._m0._m0;
-    uint16_t _334 = _273;
-    _273 = _334;
-    _273 = max(_273, _273);
-    _273 = min(_273, _273);
-    _273 = min(max(_273, _273), _273);
-    _273 -= 1us;
-    _273 *= 2us;
-    _273 = _242(_273, 3us);
-    _273 = _251(_273, 4us);
-    _273 &= 255us;
-    _273 |= 16us;
-    _273 ^= 1us;
-    _35._m0._m0 = uint(_273);
-    _35._m0._m1 = int(int16_t(_273));
-    _35._m0._m2 = float(_273);
-    _273 = uint16_t(_35._m0._m0);
-    return _273;
+    uint16_t _335 = _274;
+    _274 = _335;
+    _274 = max(_274, _274);
+    _274 = min(_274, _274);
+    _274 = min(max(_274, _274), _274);
+    _274 -= 1us;
+    _274 *= 2us;
+    _274 = _243(_274, 3us);
+    _274 = _252(_274, 4us);
+    _274 &= 255us;
+    _274 |= 16us;
+    _274 ^= 1us;
+    _35._m0._m0 = uint(_274);
+    _35._m0._m1 = int(uint(_274));
+    _35._m0._m2 = float(_274);
+    _274 = uint16_t(_35._m0._m0);
+    return _274;
 }
 
 int16_t _43(int16_t _45, int16_t _46)
@@ -142,7 +142,7 @@ int16_t _74(int16_t _73)
     _98[0u] = _96;
     _96 = _98[1u];
     _96 = _98[1u];
-    _35._m0._m0 = uint(uint16_t(_96));
+    _35._m0._m0 = uint(int(_96));
     _35._m0._m1 = int(_96);
     _35._m0._m2 = float(_96);
     _96 = int16_t(_35._m0._m0);
@@ -153,31 +153,31 @@ int16_t _74(int16_t _73)
 
 void main()
 {
-    int16_t _386 = 0s;
-    uint16_t _388 = 0us;
+    int16_t _388 = 0s;
+    uint16_t _390 = 0us;
     if (gl_LocalInvocationIndex == 0u)
     {
         _41 = 0us;
     }
     barrier();
     _41 = 0us;
-    uint16_t _399 = _260(67us);
-    int16_t _400 = _74(60s);
-    _35._m0._m11 = _399 + uint16_t(_400);
-    _386 = int16_t(gl_SubgroupInvocationID);
-    _386 = subgroupAdd(_386);
-    _386 = subgroupMul(_386);
-    _386 = subgroupMin(_386);
-    _386 = subgroupMax(_386);
-    _386 = subgroupExclusiveAdd(_386);
-    _386 = subgroupInclusiveAdd(_386);
-    _386 = subgroupBroadcastFirst(_386);
-    _386 = subgroupShuffle(_386, 4u);
-    _388 = uint16_t(gl_SubgroupInvocationID);
+    uint16_t _401 = _261(67us);
+    int16_t _402 = _74(60s);
+    _35._m0._m11 = _401 + uint16_t(_402);
+    _388 = int16_t(gl_SubgroupInvocationID);
     _388 = subgroupAdd(_388);
+    _388 = subgroupMul(_388);
     _388 = subgroupMin(_388);
     _388 = subgroupMax(_388);
-    _35._m0._m7 = _386;
-    _35._m0._m3 = _388;
+    _388 = subgroupExclusiveAdd(_388);
+    _388 = subgroupInclusiveAdd(_388);
+    _388 = subgroupBroadcastFirst(_388);
+    _388 = subgroupShuffle(_388, 4u);
+    _390 = uint16_t(gl_SubgroupInvocationID);
+    _390 = subgroupAdd(_390);
+    _390 = subgroupMin(_390);
+    _390 = subgroupMax(_390);
+    _35._m0._m7 = _388;
+    _35._m0._m3 = _390;
 }
 
