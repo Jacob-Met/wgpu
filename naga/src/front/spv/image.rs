@@ -81,16 +81,19 @@ fn extract_image_coordinates(
 
     let required_size = image_dim.required_coordinate_size();
     let required_ty = required_size.map(|size| {
-        ctx.module
-            .types
-            .get(&crate::Type {
+        // SPIR-V may use vec3<i32> for 2D arrayed image coordinates without
+        // declaring the vec2<i32> type needed after removing the array layer.
+        // The parser cannot rely on the shorter type already being present.
+        ctx.module.types.insert(
+            crate::Type {
                 name: None,
                 inner: crate::TypeInner::Vector {
                     size,
                     scalar: Scalar { kind, width: 4 },
                 },
-            })
-            .expect("Required coordinate type should have been set up by `parse_type_image`!")
+            },
+            Default::default(),
+        )
     });
     let extra_expr = crate::Expression::AccessIndex {
         base,
