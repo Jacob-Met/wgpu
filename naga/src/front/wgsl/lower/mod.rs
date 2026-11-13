@@ -4876,7 +4876,21 @@ impl<'source, 'temp> Lowerer<'source, 'temp> {
         let mode = if let Sg::BroadcastFirst = mode {
             ir::GatherMode::BroadcastFirst
         } else {
-            let index = self.expression(args.next()?, ctx)?;
+            let mut index = self.expression(args.next()?, ctx)?;
+
+            // WGSL permits i32 lane IDs for Broadcast, Shuffle, and
+            // QuadBroadcast, but Naga's IR and shader backends use u32 IDs.
+            // Convert signed IDs here so the other gather operations retain
+            // their u32-only index requirements.
+            if matches!(&mode, Sg::Broadcast | Sg::Shuffle | Sg::QuadBroadcast)
+                && matches!(
+                    resolve_inner!(ctx, index),
+                    ir::TypeInner::Scalar(ir::Scalar::I32)
+                )
+            {
+                ctx.convert_to_leaf_scalar(&mut index, ir::Scalar::U32)?;
+            }
+
             match mode {
                 Sg::BroadcastFirst => unreachable!(),
                 Sg::Broadcast => ir::GatherMode::Broadcast(index),

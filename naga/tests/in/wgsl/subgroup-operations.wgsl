@@ -28,12 +28,15 @@ fn main(
 
     _ = subgroupBroadcastFirst(subgroup_invocation_id);
     _ = subgroupBroadcast(subgroup_invocation_id, 4u);
+    _ = subgroupBroadcast(subgroup_invocation_id, 0i);
     _ = subgroupShuffle(subgroup_invocation_id, sizes.subgroup_size - 1u - subgroup_invocation_id);
+    _ = subgroupShuffle(subgroup_invocation_id, i32(subgroup_invocation_id));
     _ = subgroupShuffleDown(subgroup_invocation_id, 1u);
     _ = subgroupShuffleUp(subgroup_invocation_id, 1u);
     _ = subgroupShuffleXor(subgroup_invocation_id, sizes.subgroup_size - 1u);
 
     _ = quadBroadcast(subgroup_invocation_id, 4u);
+    _ = quadBroadcast(subgroup_invocation_id, 0i);
     _ = quadSwapX(subgroup_invocation_id);
     _ = quadSwapY(subgroup_invocation_id);
     _ = quadSwapDiagonal(subgroup_invocation_id);

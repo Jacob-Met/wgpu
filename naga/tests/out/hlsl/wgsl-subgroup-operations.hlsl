@@ -30,13 +30,16 @@ void main(ComputeInput_main computeinput_main)
     const uint _e25 = subgroup_invocation_id * WavePrefixProduct(subgroup_invocation_id);
     const uint _e26 = WaveReadLaneFirst(subgroup_invocation_id);
     const uint _e28 = WaveReadLaneAt(subgroup_invocation_id, 4u);
-    const uint _e33 = WaveReadLaneAt(subgroup_invocation_id, ((sizes.subgroup_size - 1u) - subgroup_invocation_id));
-    const uint _e35 = WaveReadLaneAt(subgroup_invocation_id, WaveGetLaneIndex() + 1u);
-    const uint _e37 = WaveReadLaneAt(subgroup_invocation_id, WaveGetLaneIndex() - 1u);
-    const uint _e41 = WaveReadLaneAt(subgroup_invocation_id, WaveGetLaneIndex() ^ (sizes.subgroup_size - 1u));
-    const uint _e43 = QuadReadLaneAt(subgroup_invocation_id, 4u);
-    const uint _e44 = QuadReadAcrossX(subgroup_invocation_id);
-    const uint _e45 = QuadReadAcrossY(subgroup_invocation_id);
-    const uint _e46 = QuadReadAcrossDiagonal(subgroup_invocation_id);
+    const uint _e30 = WaveReadLaneAt(subgroup_invocation_id, 0u);
+    const uint _e35 = WaveReadLaneAt(subgroup_invocation_id, ((sizes.subgroup_size - 1u) - subgroup_invocation_id));
+    const uint _e38 = WaveReadLaneAt(subgroup_invocation_id, uint(int(subgroup_invocation_id)));
+    const uint _e40 = WaveReadLaneAt(subgroup_invocation_id, WaveGetLaneIndex() + 1u);
+    const uint _e42 = WaveReadLaneAt(subgroup_invocation_id, WaveGetLaneIndex() - 1u);
+    const uint _e46 = WaveReadLaneAt(subgroup_invocation_id, WaveGetLaneIndex() ^ (sizes.subgroup_size - 1u));
+    const uint _e48 = QuadReadLaneAt(subgroup_invocation_id, 4u);
+    const uint _e50 = QuadReadLaneAt(subgroup_invocation_id, 0u);
+    const uint _e51 = QuadReadAcrossX(subgroup_invocation_id);
+    const uint _e52 = QuadReadAcrossY(subgroup_invocation_id);
+    const uint _e53 = QuadReadAcrossDiagonal(subgroup_invocation_id);
     return;
 }

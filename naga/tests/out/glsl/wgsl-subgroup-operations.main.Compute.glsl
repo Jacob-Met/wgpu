@@ -35,14 +35,17 @@ void main() {
     uint _e25 = subgroupInclusiveMul(subgroup_invocation_id);
     uint _e26 = subgroupBroadcastFirst(subgroup_invocation_id);
     uint _e28 = subgroupBroadcast(subgroup_invocation_id, 4u);
-    uint _e33 = subgroupShuffle(subgroup_invocation_id, ((sizes.subgroup_size - 1u) - subgroup_invocation_id));
-    uint _e35 = subgroupShuffleDown(subgroup_invocation_id, 1u);
-    uint _e37 = subgroupShuffleUp(subgroup_invocation_id, 1u);
-    uint _e41 = subgroupShuffleXor(subgroup_invocation_id, (sizes.subgroup_size - 1u));
-    uint _e43 = subgroupQuadBroadcast(subgroup_invocation_id, 4u);
-    uint _e44 = subgroupQuadSwapHorizontal(subgroup_invocation_id);
-    uint _e45 = subgroupQuadSwapVertical(subgroup_invocation_id);
-    uint _e46 = subgroupQuadSwapDiagonal(subgroup_invocation_id);
+    uint _e30 = subgroupBroadcast(subgroup_invocation_id, 0u);
+    uint _e35 = subgroupShuffle(subgroup_invocation_id, ((sizes.subgroup_size - 1u) - subgroup_invocation_id));
+    uint _e38 = subgroupShuffle(subgroup_invocation_id, uint(int(subgroup_invocation_id)));
+    uint _e40 = subgroupShuffleDown(subgroup_invocation_id, 1u);
+    uint _e42 = subgroupShuffleUp(subgroup_invocation_id, 1u);
+    uint _e46 = subgroupShuffleXor(subgroup_invocation_id, (sizes.subgroup_size - 1u));
+    uint _e48 = subgroupQuadBroadcast(subgroup_invocation_id, 4u);
+    uint _e50 = subgroupQuadBroadcast(subgroup_invocation_id, 0u);
+    uint _e51 = subgroupQuadSwapHorizontal(subgroup_invocation_id);
+    uint _e52 = subgroupQuadSwapVertical(subgroup_invocation_id);
+    uint _e53 = subgroupQuadSwapDiagonal(subgroup_invocation_id);
     return;
 }
 

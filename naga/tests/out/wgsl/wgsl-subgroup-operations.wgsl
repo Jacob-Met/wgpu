@@ -22,13 +22,16 @@ fn main(sizes: Structure, @builtin(subgroup_id) subgroup_id: u32, @builtin(subgr
     let _e25 = subgroupInclusiveMul(subgroup_invocation_id);
     let _e26 = subgroupBroadcastFirst(subgroup_invocation_id);
     let _e28 = subgroupBroadcast(subgroup_invocation_id, 4u);
-    let _e33 = subgroupShuffle(subgroup_invocation_id, ((sizes.subgroup_size - 1u) - subgroup_invocation_id));
-    let _e35 = subgroupShuffleDown(subgroup_invocation_id, 1u);
-    let _e37 = subgroupShuffleUp(subgroup_invocation_id, 1u);
-    let _e41 = subgroupShuffleXor(subgroup_invocation_id, (sizes.subgroup_size - 1u));
-    let _e43 = quadBroadcast(subgroup_invocation_id, 4u);
-    let _e44 = quadSwapX(subgroup_invocation_id);
-    let _e45 = quadSwapY(subgroup_invocation_id);
-    let _e46 = quadSwapDiagonal(subgroup_invocation_id);
+    let _e30 = subgroupBroadcast(subgroup_invocation_id, 0u);
+    let _e35 = subgroupShuffle(subgroup_invocation_id, ((sizes.subgroup_size - 1u) - subgroup_invocation_id));
+    let _e38 = subgroupShuffle(subgroup_invocation_id, u32(i32(subgroup_invocation_id)));
+    let _e40 = subgroupShuffleDown(subgroup_invocation_id, 1u);
+    let _e42 = subgroupShuffleUp(subgroup_invocation_id, 1u);
+    let _e46 = subgroupShuffleXor(subgroup_invocation_id, (sizes.subgroup_size - 1u));
+    let _e48 = quadBroadcast(subgroup_invocation_id, 4u);
+    let _e50 = quadBroadcast(subgroup_invocation_id, 0u);
+    let _e51 = quadSwapX(subgroup_invocation_id);
+    let _e52 = quadSwapY(subgroup_invocation_id);
+    let _e53 = quadSwapDiagonal(subgroup_invocation_id);
     return;
 }

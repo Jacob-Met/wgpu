@@ -35,13 +35,16 @@ struct main_Input {
     uint _e25 = metal::simd_prefix_inclusive_product(subgroup_invocation_id);
     uint _e26 = metal::simd_broadcast_first(subgroup_invocation_id);
     uint _e28 = metal::simd_broadcast(subgroup_invocation_id, 4u);
-    uint _e33 = metal::simd_shuffle(subgroup_invocation_id, (sizes.subgroup_size - 1u) - subgroup_invocation_id);
-    uint _e35 = metal::simd_shuffle_down(subgroup_invocation_id, 1u);
-    uint _e37 = metal::simd_shuffle_up(subgroup_invocation_id, 1u);
-    uint _e41 = metal::simd_shuffle_xor(subgroup_invocation_id, sizes.subgroup_size - 1u);
-    uint _e43 = metal::quad_broadcast(subgroup_invocation_id, 4u);
-    uint _e44 = metal::quad_shuffle_xor(subgroup_invocation_id, 1u);
-    uint _e45 = metal::quad_shuffle_xor(subgroup_invocation_id, 2u);
-    uint _e46 = metal::quad_shuffle_xor(subgroup_invocation_id, 3u);
+    uint _e30 = metal::simd_broadcast(subgroup_invocation_id, 0u);
+    uint _e35 = metal::simd_shuffle(subgroup_invocation_id, (sizes.subgroup_size - 1u) - subgroup_invocation_id);
+    uint _e38 = metal::simd_shuffle(subgroup_invocation_id, static_cast<uint>(static_cast<int>(subgroup_invocation_id)));
+    uint _e40 = metal::simd_shuffle_down(subgroup_invocation_id, 1u);
+    uint _e42 = metal::simd_shuffle_up(subgroup_invocation_id, 1u);
+    uint _e46 = metal::simd_shuffle_xor(subgroup_invocation_id, sizes.subgroup_size - 1u);
+    uint _e48 = metal::quad_broadcast(subgroup_invocation_id, 4u);
+    uint _e50 = metal::quad_broadcast(subgroup_invocation_id, 0u);
+    uint _e51 = metal::quad_shuffle_xor(subgroup_invocation_id, 1u);
+    uint _e52 = metal::quad_shuffle_xor(subgroup_invocation_id, 2u);
+    uint _e53 = metal::quad_shuffle_xor(subgroup_invocation_id, 3u);
     return;
 }

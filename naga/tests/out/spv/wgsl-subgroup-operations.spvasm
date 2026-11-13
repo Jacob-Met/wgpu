@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.3
 ; Generator: rspirv
-; Bound: 61
+; Bound: 67
 OpCapability Shader
 OpCapability GroupNonUniform
 OpCapability GroupNonUniformBallot
@@ -36,7 +36,8 @@ OpDecorate %15 BuiltIn SubgroupLocalInvocationId
 %25 = OpTypeVector %3 4
 %26 = OpConstant  %3  3
 %28 = OpConstantTrue  %5
-%60 = OpConstant  %3  2
+%52 = OpTypeInt 32 1
+%66 = OpConstant  %3  2
 %17 = OpFunction  %2  None %18
 %6 = OpLabel
 %10 = OpLoad  %3  %8
@@ -67,18 +68,23 @@ OpBranch %22
 %44 = OpGroupNonUniformIMul  %3  %26 InclusiveScan %16
 %45 = OpGroupNonUniformBroadcastFirst  %3  %26 %16
 %46 = OpGroupNonUniformShuffle  %3  %26 %16 %21
-%47 = OpCompositeExtract  %3  %7 1
-%48 = OpISub  %3  %47 %19
-%49 = OpISub  %3  %48 %16
-%50 = OpGroupNonUniformShuffle  %3  %26 %16 %49
-%51 = OpGroupNonUniformShuffleDown  %3  %26 %16 %19
-%52 = OpGroupNonUniformShuffleUp  %3  %26 %16 %19
-%53 = OpCompositeExtract  %3  %7 1
-%54 = OpISub  %3  %53 %19
-%55 = OpGroupNonUniformShuffleXor  %3  %26 %16 %54
-%56 = OpGroupNonUniformQuadBroadcast  %3  %26 %16 %21
-%57 = OpGroupNonUniformQuadSwap  %3  %26 %16 %20
-%58 = OpGroupNonUniformQuadSwap  %3  %26 %16 %19
-%59 = OpGroupNonUniformQuadSwap  %3  %26 %16 %60
+%47 = OpGroupNonUniformShuffle  %3  %26 %16 %20
+%48 = OpCompositeExtract  %3  %7 1
+%49 = OpISub  %3  %48 %19
+%50 = OpISub  %3  %49 %16
+%51 = OpGroupNonUniformShuffle  %3  %26 %16 %50
+%53 = OpBitcast  %52  %16
+%54 = OpBitcast  %3  %53
+%55 = OpGroupNonUniformShuffle  %3  %26 %16 %54
+%56 = OpGroupNonUniformShuffleDown  %3  %26 %16 %19
+%57 = OpGroupNonUniformShuffleUp  %3  %26 %16 %19
+%58 = OpCompositeExtract  %3  %7 1
+%59 = OpISub  %3  %58 %19
+%60 = OpGroupNonUniformShuffleXor  %3  %26 %16 %59
+%61 = OpGroupNonUniformQuadBroadcast  %3  %26 %16 %21
+%62 = OpGroupNonUniformQuadBroadcast  %3  %26 %16 %20
+%63 = OpGroupNonUniformQuadSwap  %3  %26 %16 %20
+%64 = OpGroupNonUniformQuadSwap  %3  %26 %16 %19
+%65 = OpGroupNonUniformQuadSwap  %3  %26 %16 %66
 OpReturn
 OpFunctionEnd
