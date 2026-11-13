@@ -114,6 +114,23 @@ impl<'source> Lowerer<'source, '_> {
     ) -> Result<'source, Handle<crate::Expression>> {
         use crate::proc::TypeResolution as Tr;
 
+        // Check the array constructor limit before evaluating its operands:
+        // out-of-spec arrays can otherwise produce SPIR-V composite
+        // instructions too long to encode (and panic in the backend).
+        let is_array_constructor = match &constructor {
+            Constructor::PartialArray => true,
+            Constructor::Type(ty) => {
+                matches!(&ctx.module.types[*ty].inner, crate::TypeInner::Array { .. })
+            }
+            _ => false,
+        };
+        if is_array_constructor && components.len() > super::super::MAX_ARRAY_CONSTRUCTOR_ELEMENTS {
+            return Err(Box::new(Error::ArrayConstructorTooLarge {
+                span: ty_span,
+                count: components.len(),
+            }));
+        }
+
         let components = match *components {
             [] => Components::None,
             [component] => {

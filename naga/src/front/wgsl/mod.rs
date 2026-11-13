@@ -34,6 +34,10 @@ use std::println;
 
 pub(crate) type Result<'a, T> = core::result::Result<T, Box<Error<'a>>>;
 
+// https://www.w3.org/TR/WGSL/#value-constructor-builtin-function
+// Maximum number of elements in an array value constructor expression.
+const MAX_ARRAY_CONSTRUCTOR_ELEMENTS: usize = 2047;
+
 #[derive(Debug)]
 pub struct Frontend {
     parser: Parser,

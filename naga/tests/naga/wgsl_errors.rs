@@ -7125,3 +7125,22 @@ fn main() {
 ",
     );
 }
+
+#[test]
+fn array_value_constructor_element_limit() {
+    // WGSL's value-constructor limit is about the number of arguments,
+    // not the declared array size. Keep a valid boundary case working.
+    let valid = format!(
+        "const values = array<f32, 2047>({});",
+        vec!["1f"; 2047].join(", ")
+    );
+    check_success(&valid);
+
+    for constructor in ["array<f32, 2048>", "array"] {
+        let input = format!(
+            "const values = {constructor}({});",
+            vec!["1f"; 2048].join(", ")
+        );
+        check_error_matches(&input, "array constructor has 2048 elements");
+    }
+}

@@ -356,6 +356,10 @@ pub(crate) enum Error<'a> {
     InvalidBreakIf(Span),
     InvalidGatherComponent(Span),
     InvalidConstructorComponentType(Span, i32),
+    ArrayConstructorTooLarge {
+        span: Span,
+        count: usize,
+    },
     InvalidIdentifierUnderscore(Span),
     ReservedIdentifierPrefix(Span),
     UnknownAddressSpace(Span),
@@ -1707,6 +1711,15 @@ impl<'a> Error<'a> {
                     crate::valid::MAX_TYPE_SIZE
                 ).into()],
                 message: "struct member is too large".into(),
+            },
+            Error::ArrayConstructorTooLarge { span, count } => ParseError {
+                labels: vec![(*span, "too many array values".into())],
+                notes: vec!["large constant data should be supplied through a buffer".into()],
+                message: format!(
+                    "array constructor has {count} elements; WGSL allows at most {}",
+                    super::MAX_ARRAY_CONSTRUCTOR_ELEMENTS
+                )
+                .into(),
             },
             Error::TypeTooLarge { span } => ParseError {
                 labels: vec![(*span, "this type exceeds the maximum size".into())],
