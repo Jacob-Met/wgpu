@@ -66,3 +66,41 @@ fn hlsl_storage_constant_index_overflow_does_not_alias_first_element() {
         "{err}"
     );
 }
+
+#[test]
+fn i64_literals_preserve_width_and_sign_under_dxc_2018() {
+    let source = r#"
+        @group(0) @binding(0) var<storage, read_write> out: array<i64>;
+        @group(0) @binding(1) var<storage, read_write> out_u: array<u64>;
+        @compute @workgroup_size(1)
+        fn main() {
+            out[0] = 4294967296li;
+            out_u[0] = 18446744073709551615lu;
+            out[1] = i64(out_u[0]);
+            out[2] = select(0li, 1li, out[0] < 0li);
+            out[3] = ~9223372036854775807li;
+        }
+    "#;
+    let module = naga::front::wgsl::parse_str(source).unwrap();
+    let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::all())
+        .validate(&module)
+        .unwrap();
+    let options = hlsl::Options {
+        shader_model: hlsl::ShaderModel::V6_0,
+        ..Default::default()
+    };
+    let mut output = String::new();
+    hlsl::Writer::new(&mut output, &options, &hlsl::PipelineOptions::default())
+        .write(&module, &info, None)
+        .unwrap();
+
+    // DXC -HV 2018 interprets L/uL as 32-bit integers: the original
+    // suffixes truncate large values and can change signed comparisons.
+    assert!(output.contains("4294967296LL"), "{output}");
+    assert!(output.contains("18446744073709551615ULL"), "{output}");
+    assert!(output.contains("0LL"), "{output}");
+    assert!(
+        output.contains("(-9223372036854775807LL - 1LL)"),
+        "{output}"
+    );
+}
