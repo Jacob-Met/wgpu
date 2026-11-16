@@ -1482,7 +1482,15 @@ impl<W: Write> Writer<W> {
         match expressions[expr] {
             Expression::Literal(literal) => match literal {
                 crate::Literal::F16(value) => write!(self.out, "{value}h")?,
-                crate::Literal::F32(value) => write!(self.out, "{value}f")?,
+                crate::Literal::F32(value) => {
+                    // `Display` rounds f32::MAX to a decimal beyond f32's range,
+                    // which some WGSL compilers reject before conversion.
+                    if value == f32::MAX || value == f32::MIN {
+                        write!(self.out, "{:e}f", f64::from(value))?;
+                    } else {
+                        write!(self.out, "{value}f")?;
+                    }
+                }
                 crate::Literal::U16(value) => write!(self.out, "u16({value})")?,
                 crate::Literal::I16(value) => write!(self.out, "i16({value})")?,
                 crate::Literal::U32(value) => write!(self.out, "{value}u")?,
