@@ -13,6 +13,7 @@ use core::{
     ops::Range,
     ptr::NonNull,
 };
+use scopeguard::{guard, ScopeGuard};
 use smallvec::SmallVec;
 use thiserror::Error;
 use wgt::{
@@ -1513,11 +1514,14 @@ impl StagingBuffer {
 
         let (raw, _) = unsafe { device.raw().create_buffer(&stage_desc) }
             .map_err(|e| device.handle_hal_error(e))?;
+        let raw = guard(raw, |buffer| unsafe {
+            device.raw().destroy_buffer(buffer);
+        });
         let mapping = unsafe { device.raw().map_buffer(raw.as_ref(), 0..size.get()) }
             .map_err(|e| device.handle_hal_error(e))?;
 
         let staging_buffer = StagingBuffer {
-            raw,
+            raw: ScopeGuard::into_inner(raw),
             device: device.clone(),
             size,
             is_coherent: mapping.is_coherent,

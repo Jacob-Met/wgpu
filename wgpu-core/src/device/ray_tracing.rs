@@ -21,6 +21,7 @@ use crate::{
     LabelHelpers,
 };
 use hal::AccelerationStructureTriangleIndices;
+use scopeguard::{guard, ScopeGuard};
 use wgt::{Features, AABB_GEOMETRY_MIN_STRIDE};
 
 impl Device {
@@ -198,6 +199,9 @@ impl Device {
                 })
         }
         .map_err(|e| self.handle_hal_error_with_nonfatal_oom(e))?;
+        let raw = guard(raw, |structure| unsafe {
+            self.raw().destroy_acceleration_structure(structure);
+        });
 
         let compaction_buffer = if blas_desc
             .flags
@@ -229,7 +233,7 @@ impl Device {
 
         Ok(Arc::new(resource::Blas {
             state: ResourceState::Valid(resource::BlasState {
-                raw: Snatchable::new(raw),
+                raw: Snatchable::new(ScopeGuard::into_inner(raw)),
             }),
             device: self.clone(),
             size_info,
@@ -321,6 +325,9 @@ impl Device {
                 })
         }
         .map_err(|e| self.handle_hal_error_with_nonfatal_oom(e))?;
+        let raw = guard(raw, |structure| unsafe {
+            self.raw().destroy_acceleration_structure(structure);
+        });
 
         let instance_buffer_size = self
             .alignments
@@ -340,7 +347,7 @@ impl Device {
 
         Ok(Arc::new(resource::Tlas {
             state: ResourceState::Valid(resource::TlasState {
-                raw: Snatchable::new(raw),
+                raw: Snatchable::new(ScopeGuard::into_inner(raw)),
                 instance_buffer,
             }),
             device: self.clone(),
