@@ -1005,9 +1005,11 @@ impl crate::Device for super::Device {
                 Some(
                     wgt::TextureSampleType::Float { filterable: false }
                     | wgt::TextureSampleType::Uint
-                    | wgt::TextureSampleType::Sint,
+                    | wgt::TextureSampleType::Sint
+                    | wgt::TextureSampleType::Depth,
                 ) => {
-                    // reset default filtering mode
+                    // GLES3/WebGL2 require NEAREST filtering for non-filterable
+                    // textures. Depth textures otherwise read zero with texelFetch.
                     unsafe {
                         gl.tex_parameter_i32(target, glow::TEXTURE_MIN_FILTER, glow::NEAREST as i32)
                     };
