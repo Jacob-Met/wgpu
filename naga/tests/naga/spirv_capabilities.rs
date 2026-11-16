@@ -614,3 +614,59 @@ fn relative_subgroup_shuffles_still_require_unsigned_indices() {
         );
     }
 }
+
+#[test]
+fn constant_composite_size_limit_returns_error_instead_of_panicking() {
+    use naga::{
+        back::spv, valid, ArraySize, Expression, Literal, Module, Scalar, Span, Type, TypeInner,
+    };
+
+    for (elements, should_succeed) in [(65_532usize, true), (65_533, false)] {
+        let mut module = Module::default();
+        let span = Span::default();
+        let scalar = module.types.insert(
+            Type {
+                name: None,
+                inner: TypeInner::Scalar(Scalar::U32),
+            },
+            span,
+        );
+        let array = module.types.insert(
+            Type {
+                name: None,
+                inner: TypeInner::Array {
+                    base: scalar,
+                    size: ArraySize::Constant(core::num::NonZeroU32::new(elements as u32).unwrap()),
+                    stride: 4,
+                },
+            },
+            span,
+        );
+        let value = module
+            .global_expressions
+            .append(Expression::Literal(Literal::U32(1)), span);
+        module.global_expressions.append(
+            Expression::Compose {
+                ty: array,
+                components: vec![value; elements],
+            },
+            span,
+        );
+
+        let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::all())
+            .validate(&module)
+            .unwrap();
+        let result = spv::write_vec(&module, &info, &spv::Options::default(), None);
+        if should_succeed {
+            assert!(result.is_ok(), "array has {elements} elements: {result:?}");
+        } else {
+            assert!(matches!(
+                result,
+                Err(spv::Error::ConstantCompositeTooLarge {
+                    actual: 65_533,
+                    max: 65_532
+                })
+            ));
+        }
+    }
+}

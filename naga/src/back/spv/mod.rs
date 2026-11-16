@@ -171,6 +171,8 @@ pub enum Error {
     FeatureNotImplemented(&'static str),
     #[error("module is not validated properly: {0}")]
     Validation(&'static str),
+    #[error("constant composite has {actual} constituents, exceeding SPIR-V's limit of {max}")]
+    ConstantCompositeTooLarge { actual: usize, max: usize },
     #[error("overrides should not be present at this stage")]
     Override,
     #[error(transparent)]
