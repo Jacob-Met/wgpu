@@ -32,6 +32,7 @@ use core::num::NonZeroU64;
 use alloc::{boxed::Box, string::String, sync::Arc};
 
 use hashbrown::HashMap;
+use scopeguard::{guard, ScopeGuard};
 
 use crate::{
     device::{Device, DeviceError},
@@ -46,6 +47,7 @@ pub const TIMESTAMP_NORMALIZATION_BUFFER_USES: wgt::BufferUses =
     wgt::BufferUses::STORAGE_READ_WRITE;
 
 struct InternalState {
+    module: Box<dyn hal::DynShaderModule>,
     temporary_bind_group_layout: Box<dyn hal::DynBindGroupLayout>,
     pipeline_layout: Box<dyn hal::DynPipelineLayout>,
     pipeline: Box<dyn hal::DynComputePipeline>,
@@ -131,6 +133,9 @@ impl TimestampNormalizer {
                 .map_err(|e| {
                     TimestampNormalizerInitError::BindGroupLayout(device.handle_hal_error(e))
                 })?;
+            let temporary_bind_group_layout = guard(temporary_bind_group_layout, |layout| {
+                device.raw().destroy_bind_group_layout(layout);
+            });
 
             let common_src = include_str!("common.wgsl");
             let src = include_str!("timestamp_normalization.wgsl");
@@ -187,6 +192,9 @@ impl TimestampNormalizer {
                         CreateShaderModuleError::Generation
                     }
                 })?;
+            let module = guard(module, |module| {
+                device.raw().destroy_shader_module(module);
+            });
 
             let pipeline_layout = device
                 .raw()
@@ -202,6 +210,9 @@ impl TimestampNormalizer {
                 .map_err(|e| {
                     TimestampNormalizerInitError::PipelineLayout(device.handle_hal_error(e))
                 })?;
+            let pipeline_layout = guard(pipeline_layout, |layout| {
+                device.raw().destroy_pipeline_layout(layout);
+            });
 
             let (multiplier, shift) = compute_timestamp_period(timestamp_period);
 
@@ -230,8 +241,11 @@ impl TimestampNormalizer {
 
             Ok(Self {
                 state: Some(InternalState {
-                    temporary_bind_group_layout,
-                    pipeline_layout,
+                    module: ScopeGuard::into_inner(module),
+                    temporary_bind_group_layout: ScopeGuard::into_inner(
+                        temporary_bind_group_layout,
+                    ),
+                    pipeline_layout: ScopeGuard::into_inner(pipeline_layout),
                     pipeline,
                 }),
             })
@@ -362,6 +376,7 @@ impl TimestampNormalizer {
             device.destroy_compute_pipeline(state.pipeline);
             device.destroy_pipeline_layout(state.pipeline_layout);
             device.destroy_bind_group_layout(state.temporary_bind_group_layout);
+            device.destroy_shader_module(state.module);
         }
     }
 
