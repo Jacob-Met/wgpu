@@ -7144,3 +7144,33 @@ fn array_value_constructor_element_limit() {
         check_error_matches(&input, "array constructor has 2048 elements");
     }
 }
+
+#[test]
+fn f16_constant_conversion_overflow() {
+    // gfx-rs/wgpu#9499: an overflowing constant f16 must not reach an
+    // infallible conversion to i32 and panic the shader parser.
+    for source in [
+        "enable f16; const x: f16 = f16(65520i);",
+        "enable f16; const x: f16 = f16(-65520i);",
+        "enable f16; const x: f16 = f16(65520u);",
+        "enable f16; const x: f16 = f16(65520.0f);",
+        "enable f16; const x: f16 = f16(65520i); const y: i32 = i32(x);",
+        "enable f16; const x: f16 = f16(65520i); const y: u32 = u32(x);",
+    ] {
+        check_error_matches(source, "overflow");
+    }
+
+    check_error_matches(
+        "enable f16; const x: f16 = f16(65520);",
+        "cannot represent the abstract value",
+    );
+
+    for source in [
+        "enable f16; const x: f16 = f16(65504i); const y: i32 = i32(x);",
+        "enable f16; const x: f16 = f16(-65504i); const y: i32 = i32(x);",
+        "enable f16; const x: f16 = f16(65504u); const y: u32 = u32(x);",
+        "enable f16; const x: f16 = f16(65504.0f); const y: i32 = i32(x);",
+    ] {
+        check_success(source);
+    }
+}

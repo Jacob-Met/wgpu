@@ -13,7 +13,7 @@ use core::iter;
 
 use arrayvec::ArrayVec;
 use half::f16;
-use num_traits::{real::Real, FromPrimitive, One, ToPrimitive, Zero};
+use num_traits::{real::Real, FromPrimitive, One, Zero};
 
 use crate::{
     arena::{Arena, Handle, HandleVec, UniqueArena},
@@ -2524,7 +2524,7 @@ impl<'a> ConstantEvaluator<'a> {
                         Literal::I32(v) => v as u16,
                         Literal::U32(v) => v as u16,
                         Literal::F32(v) => v.clamp(u16::MIN as f32, u16::MAX as f32) as u16,
-                        Literal::F16(v) => f16::to_u16(&v.max(f16::ZERO)).unwrap(),
+                        Literal::F16(v) => f16::to_f32(v) as u16,
                         Literal::Bool(v) => v as u16,
                         Literal::F64(_) | Literal::I64(_) | Literal::U64(_) => {
                             return make_error();
@@ -2538,7 +2538,7 @@ impl<'a> ConstantEvaluator<'a> {
                         Literal::I32(v) => v,
                         Literal::U32(v) => v as i32,
                         Literal::F32(v) => v.clamp(i32::min_float(), i32::max_float()) as i32,
-                        Literal::F16(v) => f16::to_i32(&v).unwrap(), //Only None on NaN or Inf
+                        Literal::F16(v) => f16::to_f32(v) as i32,
                         Literal::Bool(v) => v as i32,
                         Literal::F64(_) | Literal::I64(_) | Literal::U64(_) => {
                             return make_error();
@@ -2553,7 +2553,7 @@ impl<'a> ConstantEvaluator<'a> {
                         Literal::U32(v) => v,
                         Literal::F32(v) => v.clamp(u32::min_float(), u32::max_float()) as u32,
                         // max(0) avoids None due to negative, therefore only None on NaN or Inf
-                        Literal::F16(v) => f16::to_u32(&v.max(f16::ZERO)).unwrap(),
+                        Literal::F16(v) => f16::to_f32(v) as u32,
                         Literal::Bool(v) => v as u32,
                         Literal::F64(_) | Literal::I64(_) | Literal::U64(_) => {
                             return make_error();
@@ -2571,7 +2571,7 @@ impl<'a> ConstantEvaluator<'a> {
                         Literal::F64(v) => v.clamp(i64::min_float(), i64::max_float()) as i64,
                         Literal::I64(v) => v,
                         Literal::U64(v) => v as i64,
-                        Literal::F16(v) => f16::to_i64(&v).unwrap(), //Only None on NaN or Inf
+                        Literal::F16(v) => f16::to_f32(v) as i64,
                         Literal::AbstractInt(v) => i64::try_from_abstract(v)?,
                         Literal::AbstractFloat(v) => i64::try_from_abstract(v)?,
                     }),
@@ -2586,24 +2586,40 @@ impl<'a> ConstantEvaluator<'a> {
                         Literal::I64(v) => v as u64,
                         Literal::U64(v) => v,
                         // max(0) avoids None due to negative, therefore only None on NaN or Inf
-                        Literal::F16(v) => f16::to_u64(&v.max(f16::ZERO)).unwrap(),
+                        Literal::F16(v) => f16::to_f32(v) as u64,
                         Literal::AbstractInt(v) => u64::try_from_abstract(v)?,
                         Literal::AbstractFloat(v) => u64::try_from_abstract(v)?,
                     }),
-                    Sc::F16 => Literal::F16(match literal {
-                        Literal::F16(v) => v,
-                        Literal::F32(v) => f16::from_f32(v),
-                        Literal::F64(v) => f16::from_f64(v),
-                        Literal::Bool(v) => f16::from_u32(v as u32).unwrap(),
-                        Literal::I16(v) => f16::from_f32(v as f32),
-                        Literal::U16(v) => f16::from_f32(v as f32),
-                        Literal::I64(v) => f16::from_i64(v).unwrap(),
-                        Literal::U64(v) => f16::from_u64(v).unwrap(),
-                        Literal::I32(v) => f16::from_i32(v).unwrap(),
-                        Literal::U32(v) => f16::from_u32(v).unwrap(),
-                        Literal::AbstractFloat(v) => f16::try_from_abstract(v)?,
-                        Literal::AbstractInt(v) => f16::try_from_abstract(v)?,
-                    }),
+                    Sc::F16 => {
+                        let value = match literal {
+                            Literal::F16(v) => v,
+                            Literal::F32(v) => f16::from_f32(v),
+                            Literal::F64(v) => f16::from_f64(v),
+                            Literal::Bool(v) => f16::from_f32(v as u32 as f32),
+                            Literal::I16(v) => f16::from_f32(v as f32),
+                            Literal::U16(v) => f16::from_f32(v as f32),
+                            Literal::I64(v) => f16::from_i64(v).ok_or_else(|| {
+                                ConstantEvaluatorError::Overflow("conversion to f16".into())
+                            })?,
+                            Literal::U64(v) => f16::from_u64(v).ok_or_else(|| {
+                                ConstantEvaluatorError::Overflow("conversion to f16".into())
+                            })?,
+                            Literal::I32(v) => f16::from_i32(v).ok_or_else(|| {
+                                ConstantEvaluatorError::Overflow("conversion to f16".into())
+                            })?,
+                            Literal::U32(v) => f16::from_u32(v).ok_or_else(|| {
+                                ConstantEvaluatorError::Overflow("conversion to f16".into())
+                            })?,
+                            Literal::AbstractFloat(v) => f16::try_from_abstract(v)?,
+                            Literal::AbstractInt(v) => f16::try_from_abstract(v)?,
+                        };
+                        if !value.is_finite() {
+                            return Err(ConstantEvaluatorError::Overflow(
+                                "conversion to f16".into(),
+                            ));
+                        }
+                        Literal::F16(value)
+                    }
                     Sc::F32 => Literal::F32(match literal {
                         Literal::I16(v) => v as f32,
                         Literal::U16(v) => v as f32,
@@ -4447,7 +4463,7 @@ impl TryFromAbstract<f64> for f16 {
 impl TryFromAbstract<i64> for f16 {
     fn try_from_abstract(value: i64) -> Result<f16, ConstantEvaluatorError> {
         let f = f16::from_i64(value);
-        if f.is_none() {
+        if f.is_none_or(|value| !value.is_finite()) {
             return Err(ConstantEvaluatorError::AutomaticConversionLossy {
                 value: format!("{value:?}"),
                 to_type: "f16",
