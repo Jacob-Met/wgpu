@@ -1354,28 +1354,34 @@ impl Device {
             .map_err(|e| self.handle_hal_error_with_nonfatal_oom(e))?;
 
         debug_assert!(final_size >= padded_size);
+        let buffer = guard(buffer, |buffer| unsafe {
+            self.raw().destroy_buffer(buffer);
+        });
 
-        let timestamp_normalization_bind_group = Snatchable::new(unsafe {
-            // SAFETY: The size passed here must be 4B aligned, >= the application size, and
-            // <= the buffer size.
-            self.timestamp_normalizer
-                .get()
-                .unwrap()
-                .create_normalization_bind_group(
-                    self,
-                    &*buffer,
-                    desc.label.as_deref(),
-                    wgt::BufferSize::new(hal_desc.size).unwrap(),
-                    desc.usage,
-                )
-        }?);
+        let timestamp_normalization_bind_group = guard(
+            unsafe {
+                // SAFETY: The size passed here must be 4B aligned, >= the application size, and
+                // <= the buffer size.
+                self.timestamp_normalizer
+                    .get()
+                    .unwrap()
+                    .create_normalization_bind_group(
+                        self,
+                        &**buffer,
+                        desc.label.as_deref(),
+                        wgt::BufferSize::new(hal_desc.size).unwrap(),
+                        desc.usage,
+                    )
+            }?,
+            |bind_group| bind_group.dispose(self.raw()),
+        );
 
         let indirect_validation_bind_groups =
             self.create_indirect_validation_bind_groups(buffer.as_ref(), desc.size, desc.usage)?;
 
         let buffer = Buffer {
             state: ResourceState::Valid(BufferState {
-                raw: Snatchable::new(buffer),
+                raw: Snatchable::new(ScopeGuard::into_inner(buffer)),
             }),
             device: self.clone(),
             usage: desc.usage,
@@ -1391,7 +1397,9 @@ impl Device {
             label: desc.label.to_string(),
             tracking_data: TrackingData::new(self.tracker_indices.buffers.clone()),
             bind_groups: Mutex::new(rank::BUFFER_BIND_GROUPS, WeakVec::new()),
-            timestamp_normalization_bind_group,
+            timestamp_normalization_bind_group: Snatchable::new(ScopeGuard::into_inner(
+                timestamp_normalization_bind_group,
+            )),
             indirect_validation_bind_groups,
         };
 
