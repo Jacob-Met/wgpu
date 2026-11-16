@@ -1712,6 +1712,7 @@ impl ClearViews {
         format: wgt::TextureFormat,
         mip_level_count: u32,
         array_layer_count: u32,
+        device: &dyn hal::DynDevice,
         mut create_view: impl FnMut(
             &hal::TextureViewDescriptor,
         ) -> Result<Box<dyn hal::DynTextureView>, E>,
@@ -1744,7 +1745,16 @@ impl ClearViews {
                         },
                         swizzle: wgt::TextureComponentSwizzle::default(),
                     };
-                    views.push(create_view(&desc)?);
+                    match create_view(&desc) {
+                        Ok(view) => views.push(view),
+                        Err(error) => {
+                            // HAL views require explicit destruction, not just Rust drops.
+                            for view in views.drain(..) {
+                                unsafe { device.destroy_texture_view(view) };
+                            }
+                            return Err(error);
+                        }
+                    }
                 }
             }
         }

@@ -2201,6 +2201,10 @@ impl Device {
 
         let raw_texture = unsafe { self.raw().create_texture(&hal_desc) }
             .map_err(|e| self.handle_hal_error_with_nonfatal_oom(e))?;
+        // Texture creation can still fail while creating internal clear views.
+        let raw_texture = guard(raw_texture, |texture| unsafe {
+            self.raw().destroy_texture(texture);
+        });
 
         let clear_mode = if hal_usage
             .contains(wgt::TextureUses::DEPTH_WRITE | wgt::TextureUses::STENCIL_WRITE)
@@ -2227,6 +2231,7 @@ impl Device {
                 desc.format,
                 desc.mip_level_count,
                 desc.size.depth_or_array_layers,
+                self.raw(),
                 |desc| {
                     unsafe { self.raw().create_texture_view(raw_texture.as_ref(), desc) }
                         .map_err(|e| self.handle_hal_error(e))
@@ -2242,7 +2247,9 @@ impl Device {
 
         let texture = Texture::new(
             self,
-            resource::TextureInner::Native { raw: raw_texture },
+            resource::TextureInner::Native {
+                raw: ScopeGuard::into_inner(raw_texture),
+            },
             hal_usage,
             desc,
             format_features,
