@@ -82,26 +82,24 @@ impl ImmediateState {
         Ok(())
     }
 
+    /// Return only the words accepted by the current pipeline layout.
+    /// Zero-length uploads are invalid for Vulkan and may panic on Metal.
+    pub(crate) fn data_to_upload(&self, layout_immediate_size: u32) -> Option<&[u32]> {
+        let words = self
+            .immediates
+            .len()
+            .min(layout_immediate_size as usize / size_of::<u32>());
+        (self.immediates_dirty && words != 0).then(|| &self.immediates[..words])
+    }
+
     pub(crate) fn flush_immediates(
         &mut self,
         layout: &Arc<binding_model::PipelineLayout>,
         raw_encoder: &mut dyn hal::DynCommandEncoder,
     ) {
-        let upload_words = self
-            .immediates
-            .len()
-            .min(layout.immediate_size as usize / size_of::<u32>());
-        if upload_words != 0 && self.immediates_dirty {
-            // A pipeline without immediates must not issue an empty upload.
-            // This would panic on Metal and violate Vulkan push constant validation.
-            // SAFETY: The range of immediates written is within layout immediate size.
-            unsafe {
-                raw_encoder.set_immediates(
-                    layout.raw().unwrap(),
-                    0,
-                    &self.immediates[..upload_words],
-                );
-            }
+        if let Some(data) = self.data_to_upload(layout.immediate_size) {
+            // SAFETY: The upload range is within this pipeline layout's limit.
+            unsafe { raw_encoder.set_immediates(layout.raw().unwrap(), 0, data) };
             self.immediates_dirty = false;
         }
     }

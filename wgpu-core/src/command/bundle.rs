@@ -1863,10 +1863,12 @@ impl State {
     }
 
     fn flush_immediates(&mut self) {
-        if !self.immediate_state.immediates.is_empty() && self.immediate_state.immediates_dirty {
+        // `is_ready` checked the pipeline before this is called.
+        let layout = self.pipeline.as_ref().unwrap().layout().unwrap();
+        if let Some(data) = self.immediate_state.data_to_upload(layout.immediate_size) {
             self.commands.push(ArcRenderCommand::SetImmediate {
                 offset: 0,
-                data: self.immediate_state.immediates.clone(),
+                data: data.to_vec(),
             });
             self.immediate_state.immediates_dirty = false;
         }

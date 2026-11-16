@@ -13,6 +13,7 @@ pub fn all_tests(vec: &mut Vec<GpuTestInitializer>) {
         RENDER_PASS_TEST,
         NESTED_STRUCT,
         EMPTY_UPDATE,
+        EMPTY_BUNDLE_TRANSITION,
     ]);
 }
 
@@ -176,7 +177,7 @@ static RENDER_PASS_TEST: GpuTestConfiguration = GpuTestConfiguration::new()
     )
     .run_async(move |ctx| async move {
         for use_render_bundle in [false, true] {
-            render_pass_test(&ctx, use_render_bundle).await;
+            render_pass_test(&ctx, use_render_bundle, false).await;
         }
     });
 
@@ -216,7 +217,7 @@ const SHADER2: &str = "
     }
 ";
 
-async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool) {
+async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_transition: bool) {
     let output_buffer = ctx.device.create_buffer(&BufferDescriptor {
         label: Some("output buffer"),
         size: 8 * size_of::<u32>() as BufferAddress,
@@ -305,6 +306,45 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool) {
             cache: None,
         });
 
+    // Also exercise a bundle switching to a pipeline with no immediate slots.
+    let no_immediate_pipeline = empty_transition.then(|| {
+        let shader = ctx.device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("No immediates"),
+            source: ShaderSource::Wgsl(
+                "@vertex fn vs() -> @builtin(position) vec4f { return vec4f(0,0,0,1); }\n@fragment fn fs() -> @location(0) vec4f { return vec4f(0); }".into(),
+            ),
+        });
+        let layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[],
+            immediate_size: 0,
+        });
+        ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("No immediate data"),
+            layout: Some(&layout),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: Some("vs"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(FragmentState {
+                module: &shader,
+                entry_point: Some("fs"),
+                targets: &[Some(output_texture.format().into())],
+                compilation_options: Default::default(),
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::PointList,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        })
+    });
+
     let render_pass_desc = RenderPassDescriptor {
         label: Some("Render Pass"),
         color_attachments: &[Some(RenderPassColorAttachment {
@@ -358,6 +398,11 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool) {
                         ..RenderBundleEncoderDescriptor::default()
                     });
             do_encoding(&mut render_bundle_encoder, &pipeline, &bind_group, &data);
+            if let Some(pipeline) = &no_immediate_pipeline {
+                render_bundle_encoder.set_pipeline(pipeline);
+                render_bundle_encoder.set_immediates(0, &[]);
+                render_bundle_encoder.draw(0..1, 0..1);
+            }
             let render_bundle = render_bundle_encoder.finish(&RenderBundleDescriptor::default());
             render_pass.execute_bundles([&render_bundle]);
         } else {
@@ -379,6 +424,20 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool) {
     cpu_buffer.unmap();
     assert_eq!(&result, &data);
 }
+
+/// A bundle must not upload stale immediate data after switching to a
+/// pipeline that has no immediate data (gfx-rs/wgpu#10902).
+#[apply(gpu_test!)]
+static EMPTY_BUNDLE_TRANSITION: GpuTestConfiguration = GpuTestConfiguration::new()
+    .parameters(
+        TestParameters::default()
+            .features(Features::IMMEDIATES | Features::VERTEX_WRITABLE_STORAGE)
+            .limits(Limits {
+                max_immediate_size: 64,
+                ..Default::default()
+            }),
+    )
+    .run_async(|ctx| async move { render_pass_test(&ctx, true, true).await });
 
 /// Immediates have the same layout as storage buffers, so a struct-typed member is not
 /// aligned to 16 bytes: `inner` below lives at offset 4, directly after `x`.
