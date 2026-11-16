@@ -1425,6 +1425,13 @@ impl<'a> ConstantEvaluator<'a> {
         src_constant: Handle<Expression>,
         pattern: [crate::SwizzleComponent; 4],
     ) -> Result<Handle<Expression>, ConstantEvaluatorError> {
+        // Flattening a vector compose requires expanding nested zero values
+        // into their scalar components before lane selection.
+        let src_constant = if matches!(self.expressions[src_constant], Expression::Compose { .. }) {
+            self.eval_zero_value_and_splat(src_constant, span)?
+        } else {
+            src_constant
+        };
         let mut get_dst_ty = |ty| match self.types[ty].inner {
             TypeInner::Vector { size: _, scalar } => Ok(self.types.insert(
                 Type {
@@ -2303,6 +2310,11 @@ impl<'a> ConstantEvaluator<'a> {
         index: usize,
         span: Span,
     ) -> Result<Handle<Expression>, ConstantEvaluatorError> {
+        let base = if matches!(self.expressions[base], Expression::Compose { .. }) {
+            self.eval_zero_value_and_splat(base, span)?
+        } else {
+            base
+        };
         match self.expressions[base] {
             Expression::ZeroValue(ty) => {
                 let ty_inner = &self.types[ty].inner;
