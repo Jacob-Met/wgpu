@@ -1643,6 +1643,41 @@ fn parse_validate(source: &str) -> (Module, ModuleInfo) {
     (module, info)
 }
 
+#[test]
+fn override_expression_rejects_constant_zero_integer_divisor() {
+    for (source, should_succeed) in [
+        ("override a = 1; override x = a / 0;", false),
+        ("override a = 1u; override x = a % 0u;", false),
+        (
+            "const ZERO = 0; override a = 1; override x = a / ZERO;",
+            false,
+        ),
+        ("override a = 1; override x = a / 1;", true),
+        (
+            "override a = 1; override divisor = 2; override x = a / divisor;",
+            true,
+        ),
+        (
+            "override a = 1; override divisor = 0; override x = a / divisor;",
+            true,
+        ),
+    ] {
+        let source = format!("{source}\n@compute @workgroup_size(1) fn main() {{}}");
+        let module = naga::front::wgsl::parse_str(&source).expect("WGSL parses");
+        let result =
+            valid::Validator::new(Default::default(), valid::Capabilities::all()).validate(&module);
+        if should_succeed {
+            assert!(result.is_ok(), "{source}: {result:?}");
+        } else {
+            let error = result.expect_err("known-zero integer divisor must be rejected");
+            assert!(
+                format!("{error:?}").contains("DivideByZero"),
+                "{source}: {error:?}"
+            );
+        }
+    }
+}
+
 /// Helper for `process_overrides` tests.
 ///
 /// The goal of these tests is to verify that `process_overrides` accepts cases

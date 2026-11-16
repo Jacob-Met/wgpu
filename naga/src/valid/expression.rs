@@ -178,6 +178,8 @@ pub enum ConstExpressionError {
     Compose(#[from] super::ComposeError),
     #[error("Splatting {0:?} can't be done")]
     InvalidSplatType(Handle<crate::Expression>),
+    #[error("Division by zero in an override expression")]
+    DivideByZero,
     #[error("Type resolution failed")]
     Type(#[from] ResolveError),
     #[error(transparent)]
@@ -250,6 +252,19 @@ impl super::Validator {
                 crate::TypeInner::Scalar { .. } => {}
                 _ => return Err(ConstExpressionError::InvalidSplatType(value)),
             },
+            E::Binary { op, left, right }
+                if matches!(
+                    op,
+                    crate::BinaryOperator::Divide | crate::BinaryOperator::Modulo
+                ) && matches!(
+                    mod_info[left].inner_with(gctx.types).scalar_kind(),
+                    Some(crate::ScalarKind::Sint | crate::ScalarKind::Uint)
+                ) && gctx
+                    .get_const_val_from::<u32, _>(right, gctx.global_expressions)
+                    .is_ok_and(|value| value == 0) =>
+            {
+                return Err(ConstExpressionError::DivideByZero);
+            }
             _ if global_expr_kind.is_const(handle) || self.overrides_resolved => {
                 return Err(ConstExpressionError::NonFullyEvaluatedConst)
             }
