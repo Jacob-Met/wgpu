@@ -622,9 +622,16 @@ impl PendingWrites {
                 .map_err(|e| device.handle_hal_error(e))?;
             self.is_recording = false;
 
-            let new_encoder = command_allocator
-                .acquire_encoder(device.raw(), queue.raw())
-                .map_err(|e| device.handle_hal_error(e))?;
+            let new_encoder = match command_allocator.acquire_encoder(device.raw(), queue.raw()) {
+                Ok(encoder) => encoder,
+                Err(error) => {
+                    // The HAL command buffer has been ended, but its encoder has not
+                    // been handed to `InnerCommandEncoder`. Recycle the buffer on
+                    // this error path instead of leaving it in the encoder pool.
+                    unsafe { self.command_encoder.reset_all(vec![cmd_buf]) };
+                    return Err(device.handle_hal_error(error));
+                }
+            };
 
             let mut encoder = EncoderInFlight {
                 inner: crate::command::InnerCommandEncoder {
