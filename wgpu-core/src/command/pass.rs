@@ -87,16 +87,19 @@ impl ImmediateState {
         layout: &Arc<binding_model::PipelineLayout>,
         raw_encoder: &mut dyn hal::DynCommandEncoder,
     ) {
-        if !self.immediates.is_empty() && self.immediates_dirty {
+        let upload_words = self
+            .immediates
+            .len()
+            .min(layout.immediate_size as usize / size_of::<u32>());
+        if upload_words != 0 && self.immediates_dirty {
+            // A pipeline without immediates must not issue an empty upload.
+            // This would panic on Metal and violate Vulkan push constant validation.
             // SAFETY: The range of immediates written is within layout immediate size.
             unsafe {
                 raw_encoder.set_immediates(
                     layout.raw().unwrap(),
                     0,
-                    &self.immediates[..(self
-                        .immediates
-                        .len()
-                        .min(layout.immediate_size as usize / size_of::<u32>()))],
+                    &self.immediates[..upload_words],
                 );
             }
             self.immediates_dirty = false;

@@ -8,7 +8,12 @@ use wgpu_test::{
 };
 
 pub fn all_tests(vec: &mut Vec<GpuTestInitializer>) {
-    vec.extend([PARTIAL_UPDATE, RENDER_PASS_TEST, NESTED_STRUCT]);
+    vec.extend([
+        PARTIAL_UPDATE,
+        RENDER_PASS_TEST,
+        NESTED_STRUCT,
+        EMPTY_UPDATE,
+    ]);
 }
 
 /// We want to test that partial updates to immediates work as expected.
@@ -491,4 +496,114 @@ async fn nested_struct_test(ctx: TestingContext) {
 
     let data = readback.slice(..).get_mapped_range().unwrap();
     assert_eq!(bytemuck::cast_slice::<u8, u32>(&data), [0, 1, 2, 3]);
+}
+
+/// Clearing immediates with an empty update must not submit an empty push
+/// after switching to a pipeline with no immediate data (gfx-rs/wgpu#10902).
+#[apply(gpu_test!)]
+static EMPTY_UPDATE: GpuTestConfiguration = GpuTestConfiguration::new()
+    .parameters(
+        TestParameters::default()
+            .features(Features::IMMEDIATES)
+            .limits(Limits {
+                max_immediate_size: 16,
+                ..Default::default()
+            }),
+    )
+    .run_async(empty_update_test);
+
+async fn empty_update_test(ctx: TestingContext) {
+    let device = &ctx.device;
+    let out = device.create_buffer(&BufferDescriptor {
+        label: Some("immediate transition output"),
+        size: 8,
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+    let readback = device.create_buffer(&BufferDescriptor {
+        label: Some("immediate transition readback"),
+        size: 8,
+        usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    let bind_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: None,
+        entries: &[BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::COMPUTE,
+            ty: BindingType::Buffer {
+                ty: BufferBindingType::Storage { read_only: false },
+                has_dynamic_offset: false,
+                min_binding_size: NonZeroU64::new(8),
+            },
+            count: None,
+        }],
+    });
+    let group = device.create_bind_group(&BindGroupDescriptor {
+        label: None,
+        layout: &bind_layout,
+        entries: &[BindGroupEntry {
+            binding: 0,
+            resource: out.as_entire_binding(),
+        }],
+    });
+    let shader_with = device.create_shader_module(ShaderModuleDescriptor {
+        label: None,
+        source: ShaderSource::Wgsl(
+            "var<immediate> val: u32;\n@group(0) @binding(0) var<storage, read_write> out: array<u32>;\n@compute @workgroup_size(1) fn main() { out[0] = val; }"
+                .into(),
+        ),
+    });
+    let shader_without = device.create_shader_module(ShaderModuleDescriptor {
+        label: None,
+        source: ShaderSource::Wgsl(
+            "@group(0) @binding(0) var<storage, read_write> out: array<u32>;\n@compute @workgroup_size(1) fn main() { out[1] = 7u; }"
+                .into(),
+        ),
+    });
+    let with_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[Some(&bind_layout)],
+        immediate_size: 4,
+    });
+    let without_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[Some(&bind_layout)],
+        immediate_size: 0,
+    });
+    let with_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
+        label: None,
+        layout: Some(&with_layout),
+        module: &shader_with,
+        entry_point: Some("main"),
+        compilation_options: Default::default(),
+        cache: None,
+    });
+    let without_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
+        label: None,
+        layout: Some(&without_layout),
+        module: &shader_without,
+        entry_point: Some("main"),
+        compilation_options: Default::default(),
+        cache: None,
+    });
+
+    let mut encoder = device.create_command_encoder(&Default::default());
+    {
+        let mut pass = encoder.begin_compute_pass(&Default::default());
+        pass.set_pipeline(&with_pipeline);
+        pass.set_bind_group(0, &group, &[]);
+        pass.set_immediates(0, bytemuck::bytes_of(&17_u32));
+        pass.dispatch_workgroups(1, 1, 1);
+        pass.set_pipeline(&without_pipeline);
+        pass.set_bind_group(0, &group, &[]);
+        pass.set_immediates(0, &[]);
+        pass.dispatch_workgroups(1, 1, 1);
+    }
+    encoder.copy_buffer_to_buffer(&out, 0, &readback, 0, 8);
+    ctx.queue.submit([encoder.finish()]);
+    readback.slice(..).map_async(MapMode::Read, |_| ());
+    ctx.async_poll(PollType::wait_indefinitely()).await.unwrap();
+    let bytes = readback.slice(..).get_mapped_range().unwrap();
+    assert_eq!(bytemuck::cast_slice::<u8, u32>(&bytes), &[17, 7]);
 }
