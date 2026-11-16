@@ -7,6 +7,29 @@ use naga::{
     valid::{self, Capabilities, ModuleInfo, ValidationFlags},
 };
 
+#[cfg(all(feature = "wgsl-in", feature = "wgsl-out"))]
+#[test]
+fn wgsl_writer_serializes_f32_extremes_with_in_range_literals() {
+    let source = r#"
+        const UPPER: f32 = 0x1.fffffep+127;
+        const LOWER: f32 = -0x1.fffffep+127;
+        @compute @workgroup_size(1) fn main() {}
+    "#;
+    let module = naga::front::wgsl::parse_str(source).unwrap();
+    let info = valid::Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(&module)
+        .unwrap();
+    let emitted =
+        naga::back::wgsl::write_string(&module, &info, naga::back::wgsl::WriterFlags::empty())
+            .unwrap();
+
+    // f32::MAX rounds from 3.4028235e38, but that decimal is outside f32's
+    // real-number range; Chrome/Tint rejects it even when Naga accepts it.
+    assert!(emitted.contains("3.4028234663852886e38f"), "{emitted}");
+    assert!(emitted.contains("-3.4028234663852886e38f"), "{emitted}");
+    assert!(!emitted.contains("340282350000000000000000000000000000000f"));
+}
+
 #[derive(Default)]
 struct TestSpanGenerator(u32);
 
