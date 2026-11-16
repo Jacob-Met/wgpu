@@ -1204,6 +1204,9 @@ impl super::Queue {
                         1,
                     )
                 };
+                // The draw's scissor must not clip the full-surface MSAA resolve.
+                // This command only runs at the end of a render pass.
+                unsafe { gl.disable(glow::SCISSOR_TEST) };
                 unsafe {
                     gl.blit_framebuffer(
                         0,
