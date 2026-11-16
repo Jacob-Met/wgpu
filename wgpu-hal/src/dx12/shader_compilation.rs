@@ -395,6 +395,7 @@ fn compile_dxc(
         windows::core::w!("2018"), // Use HLSL 2018, Naga doesn't supported 2021 yet.
         windows::core::w!("-no-warnings"),
         Dxc::DXC_ARG_ENABLE_STRICTNESS,
+        Dxc::DXC_ARG_IEEE_STRICTNESS,
     ]);
 
     if device
