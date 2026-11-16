@@ -1,4 +1,5 @@
 mod example_wgsl;
+mod float_to_int16;
 mod hlsl_literals;
 mod snapshots;
 mod spirv_capabilities;

@@ -32,9 +32,10 @@ use core::fmt::Write;
 use super::{
     super::FunctionCtx,
     writer::{
-        ABS_FUNCTION, DIV_FUNCTION, EXTRACT_BITS_FUNCTION, F2I32_FUNCTION, F2I64_FUNCTION,
-        F2U32_FUNCTION, F2U64_FUNCTION, IMAGE_LOAD_EXTERNAL_FUNCTION,
-        IMAGE_SAMPLE_BASE_CLAMP_TO_EDGE_FUNCTION, INSERT_BITS_FUNCTION, MOD_FUNCTION, NEG_FUNCTION,
+        ABS_FUNCTION, DIV_FUNCTION, EXTRACT_BITS_FUNCTION, F2I16_FUNCTION, F2I32_FUNCTION,
+        F2I64_FUNCTION, F2U16_FUNCTION, F2U32_FUNCTION, F2U64_FUNCTION,
+        IMAGE_LOAD_EXTERNAL_FUNCTION, IMAGE_SAMPLE_BASE_CLAMP_TO_EDGE_FUNCTION,
+        INSERT_BITS_FUNCTION, MOD_FUNCTION, NEG_FUNCTION,
     },
     BackendResult, WrappedType,
 };
@@ -1879,6 +1880,8 @@ impl<W: Write> super::Writer<'_, W> {
                         .unwrap_or(""),
                 );
                 let fun_name = match dst_scalar {
+                    crate::Scalar::I16 => F2I16_FUNCTION,
+                    crate::Scalar::U16 => F2U16_FUNCTION,
                     crate::Scalar::I32 => F2I32_FUNCTION,
                     crate::Scalar::U32 => F2U32_FUNCTION,
                     crate::Scalar::I64 => F2I64_FUNCTION,

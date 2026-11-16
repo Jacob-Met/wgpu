@@ -830,6 +830,8 @@ pub const RESERVED: &[&str] = &[
     super::writer::DIV_FUNCTION,
     super::writer::MOD_FUNCTION,
     super::writer::NEG_FUNCTION,
+    super::writer::F2I16_FUNCTION,
+    super::writer::F2U16_FUNCTION,
     super::writer::F2I32_FUNCTION,
     super::writer::F2U32_FUNCTION,
     super::writer::F2I64_FUNCTION,

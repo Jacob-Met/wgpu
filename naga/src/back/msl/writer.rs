@@ -46,6 +46,8 @@ pub(crate) const DIV_FUNCTION: &str = "naga_div";
 pub(crate) const DOT_FUNCTION_PREFIX: &str = "naga_dot";
 pub(crate) const MOD_FUNCTION: &str = "naga_mod";
 pub(crate) const NEG_FUNCTION: &str = "naga_neg";
+pub(crate) const F2I16_FUNCTION: &str = "naga_f2i16";
+pub(crate) const F2U16_FUNCTION: &str = "naga_f2u16";
 pub(crate) const F2I32_FUNCTION: &str = "naga_f2i32";
 pub(crate) const F2U32_FUNCTION: &str = "naga_f2u32";
 pub(crate) const F2I64_FUNCTION: &str = "naga_f2i64";
@@ -3058,6 +3060,8 @@ impl<W: Write> Writer<W> {
                         // undefined behaviour when value is out of range for the target
                         // type.
                         let fun_name = match (target.kind, target.width) {
+                            (crate::ScalarKind::Sint, 2) => F2I16_FUNCTION,
+                            (crate::ScalarKind::Uint, 2) => F2U16_FUNCTION,
                             (crate::ScalarKind::Sint, 4) => F2I32_FUNCTION,
                             (crate::ScalarKind::Uint, 4) => F2U32_FUNCTION,
                             (crate::ScalarKind::Sint, 8) => F2I64_FUNCTION,
@@ -6501,6 +6505,8 @@ template <typename A>
             Some(size) => put_numeric_type(&mut dst_type_name, dst_scalar, &[size])?,
         };
         let fun_name = match dst_scalar {
+            crate::Scalar::I16 => F2I16_FUNCTION,
+            crate::Scalar::U16 => F2U16_FUNCTION,
             crate::Scalar::I32 => F2I32_FUNCTION,
             crate::Scalar::U32 => F2U32_FUNCTION,
             crate::Scalar::I64 => F2I64_FUNCTION,
