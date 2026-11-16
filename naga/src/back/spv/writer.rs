@@ -2859,6 +2859,16 @@ impl Writer {
                 )
                 .map(|component| self.constant_ids[component])
                 .collect();
+                // OpConstantComposite has one opcode, type and result word in
+                // addition to one word per constituent. Reject arrays whose
+                // initializer cannot fit SPIR-V's 16-bit instruction length.
+                const MAX_CONSTITUENTS: usize = u16::MAX as usize - 3;
+                if component_ids.len() > MAX_CONSTITUENTS {
+                    return Err(Error::ConstantCompositeTooLarge {
+                        actual: component_ids.len(),
+                        max: MAX_CONSTITUENTS,
+                    });
+                }
                 self.get_constant_composite(LookupType::Handle(ty), component_ids.as_slice())
             }
             crate::Expression::Splat { size, value } => {

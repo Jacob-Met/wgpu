@@ -566,3 +566,107 @@ fn int64_leading_bit_builtins_use_integer_polyfill() {
     assert!(ops.contains(&Op::BitwiseXor));
     assert!(ops.contains(&Op::BitwiseOr));
 }
+
+#[test]
+fn signed_subgroup_ids_from_wgsl_compile_to_spirv() {
+    require(
+        &[Ca::GroupNonUniformShuffle, Ca::GroupNonUniformQuad],
+        r#"
+        @group(0) @binding(0) var<storage, read> indices: array<i32>;
+        @group(0) @binding(1) var<storage, read_write> output: array<u32>;
+        @compute @workgroup_size(64)
+        fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+            let value = gid.x;
+            output[gid.x] = subgroupShuffle(value, indices[gid.x])
+                + subgroupBroadcast(value, 0i)
+                + quadBroadcast(value, 0i)
+                + subgroupShuffle(value, 0)
+                + subgroupBroadcast(value, 0)
+                + quadBroadcast(value, 0);
+        }
+        "#,
+    );
+}
+
+#[test]
+fn relative_subgroup_shuffles_still_require_unsigned_indices() {
+    for (index, valid_index) in [("1u", true), ("1i", false)] {
+        let source = format!(
+            r#"
+            @compute @workgroup_size(64)
+            fn main(@builtin(local_invocation_index) lane: u32) {{
+                _ = subgroupShuffleDown(lane, {index});
+                _ = subgroupShuffleUp(lane, {index});
+                _ = subgroupShuffleXor(lane, {index});
+            }}
+            "#
+        );
+        let module = naga::front::wgsl::parse_str(&source).unwrap();
+        let validation = naga::valid::Validator::new(
+            naga::valid::ValidationFlags::all(),
+            naga::valid::Capabilities::all(),
+        )
+        .validate(&module);
+        assert_eq!(
+            validation.is_ok(),
+            valid_index,
+            "unexpected result for {index}"
+        );
+    }
+}
+
+#[test]
+fn constant_composite_size_limit_returns_error_instead_of_panicking() {
+    use naga::{
+        back::spv, valid, ArraySize, Expression, Literal, Module, Scalar, Span, Type, TypeInner,
+    };
+
+    for (elements, should_succeed) in [(65_532usize, true), (65_533, false)] {
+        let mut module = Module::default();
+        let span = Span::default();
+        let scalar = module.types.insert(
+            Type {
+                name: None,
+                inner: TypeInner::Scalar(Scalar::U32),
+            },
+            span,
+        );
+        let array = module.types.insert(
+            Type {
+                name: None,
+                inner: TypeInner::Array {
+                    base: scalar,
+                    size: ArraySize::Constant(core::num::NonZeroU32::new(elements as u32).unwrap()),
+                    stride: 4,
+                },
+            },
+            span,
+        );
+        let value = module
+            .global_expressions
+            .append(Expression::Literal(Literal::U32(1)), span);
+        module.global_expressions.append(
+            Expression::Compose {
+                ty: array,
+                components: vec![value; elements],
+            },
+            span,
+        );
+
+        let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::all())
+            .validate(&module)
+            .unwrap();
+        let result = spv::write_vec(&module, &info, &spv::Options::default(), None);
+        if should_succeed {
+            assert!(result.is_ok(), "array has {elements} elements: {result:?}");
+        } else {
+            assert!(matches!(
+                result,
+                Err(spv::Error::ConstantCompositeTooLarge {
+                    actual: 65_533,
+                    max: 65_532
+                })
+            ));
+        }
+    }
+}

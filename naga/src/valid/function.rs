@@ -766,7 +766,7 @@ impl super::Validator {
                         log::error!(
                             "Subgroup gather index type {index_ty:?}, expected unsigned int"
                         );
-                        return Err(SubgroupError::InvalidOperand(argument)
+                        return Err(SubgroupError::InvalidOperand(index)
                             .with_span_handle(index, context.expressions)
                             .into_other());
                     }
