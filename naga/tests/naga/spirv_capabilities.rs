@@ -566,3 +566,51 @@ fn int64_leading_bit_builtins_use_integer_polyfill() {
     assert!(ops.contains(&Op::BitwiseXor));
     assert!(ops.contains(&Op::BitwiseOr));
 }
+
+#[test]
+fn signed_subgroup_ids_from_wgsl_compile_to_spirv() {
+    require(
+        &[Ca::GroupNonUniformShuffle, Ca::GroupNonUniformQuad],
+        r#"
+        @group(0) @binding(0) var<storage, read> indices: array<i32>;
+        @group(0) @binding(1) var<storage, read_write> output: array<u32>;
+        @compute @workgroup_size(64)
+        fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+            let value = gid.x;
+            output[gid.x] = subgroupShuffle(value, indices[gid.x])
+                + subgroupBroadcast(value, 0i)
+                + quadBroadcast(value, 0i)
+                + subgroupShuffle(value, 0)
+                + subgroupBroadcast(value, 0)
+                + quadBroadcast(value, 0);
+        }
+        "#,
+    );
+}
+
+#[test]
+fn relative_subgroup_shuffles_still_require_unsigned_indices() {
+    for (index, valid_index) in [("1u", true), ("1i", false)] {
+        let source = format!(
+            r#"
+            @compute @workgroup_size(64)
+            fn main(@builtin(local_invocation_index) lane: u32) {{
+                _ = subgroupShuffleDown(lane, {index});
+                _ = subgroupShuffleUp(lane, {index});
+                _ = subgroupShuffleXor(lane, {index});
+            }}
+            "#
+        );
+        let module = naga::front::wgsl::parse_str(&source).unwrap();
+        let validation = naga::valid::Validator::new(
+            naga::valid::ValidationFlags::all(),
+            naga::valid::Capabilities::all(),
+        )
+        .validate(&module);
+        assert_eq!(
+            validation.is_ok(),
+            valid_index,
+            "unexpected result for {index}"
+        );
+    }
+}
