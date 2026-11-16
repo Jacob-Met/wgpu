@@ -7174,3 +7174,95 @@ fn f16_constant_conversion_overflow() {
         check_success(source);
     }
 }
+
+#[test]
+fn typed_64bit_constant_casts() {
+    // gfx-rs/wgpu#10931: the same casts already work at runtime; constant
+    // folding must not reject the source types just because they use 64 bits.
+    check_success(
+        r#"
+        const a = i32(1li);
+        const b = f32(1.0lf);
+        const c = f64(1lu);
+        const d = i64(1.0lf);
+        const e = u32(1lu);
+        const f = i32(-1.5lf);
+        const g = u32(1.5lf);
+        const h = bool(0li);
+        const i = bool(1lu);
+        const j = bool(0.0lf);
+        const k = f32(1li);
+        const l = f32(1lu);
+        const m = i32(0x100000001lu);
+        const n = u32(-1li);
+        const o = f64(-1li);
+        const p = f64(1lu);
+        const q = i64(0xfffffffffffffffflu);
+        const r = u64(-1li);
+        "#,
+    );
+
+    check_success(
+        r#"
+        enable f16;
+        const a = f16(1li);
+        const b = f16(1lu);
+        const c = f16(1.0lf);
+        "#,
+    );
+}
+
+#[test]
+fn typed_64bit_constant_cast_values() {
+    use naga::{Expression, Literal};
+
+    let input = r#"
+        const wrap_i32 = i32(0x100000001lu);
+        const wrap_u32 = u32(-1li);
+        const clamp_i32 = i32(1e30lf);
+        const clamp_u32 = u32(-1.5lf);
+        const truncate_i32 = i32(-1.75lf);
+        const double_u64 = f64(1lu);
+        const float_i64 = f32(42li);
+        const bool_i64 = bool(0li);
+        const bool_u64 = bool(7lu);
+        const bool_f64 = bool(0.0lf);
+        const f64_to_f32 = f32(1.5lf);
+        const wrap_i64 = i64(0xfffffffffffffffflu);
+        const wrap_u64 = u64(-1li);
+    "#;
+    let module = naga::front::wgsl::parse_str(input).unwrap();
+
+    let get_literal = |name: &str| {
+        let (_, constant) = module
+            .constants
+            .iter()
+            .find(|(_, c)| c.name.as_deref() == Some(name))
+            .unwrap_or_else(|| panic!("missing constant {name}"));
+        let Expression::Literal(value) = module.global_expressions[constant.init] else {
+            panic!("constant {name} was not folded to a literal");
+        };
+        value
+    };
+
+    for (name, expected) in [
+        ("wrap_i32", Literal::I32(1)),
+        ("wrap_u32", Literal::U32(u32::MAX)),
+        ("clamp_i32", Literal::I32(i32::MAX)),
+        ("clamp_u32", Literal::U32(0)),
+        ("truncate_i32", Literal::I32(-1)),
+        ("double_u64", Literal::F64(1.0)),
+        ("float_i64", Literal::F32(42.0)),
+        ("bool_i64", Literal::Bool(false)),
+        ("bool_u64", Literal::Bool(true)),
+        ("bool_f64", Literal::Bool(false)),
+        ("f64_to_f32", Literal::F32(1.5)),
+        ("wrap_i64", Literal::I64(-1)),
+        ("wrap_u64", Literal::U64(u64::MAX)),
+    ] {
+        assert_eq!(get_literal(name), expected, "incorrect value for {name}");
+    }
+
+    // An explicit finite f64 -> f32 cast must not insert an infinite literal.
+    check_error_matches("const too_big = f32(1e300lf);", "overflow");
+}
