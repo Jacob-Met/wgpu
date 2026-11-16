@@ -324,22 +324,29 @@ impl Display for TypeContext<'_> {
                         };
                         ("depth", msaa_str, scalar, access)
                     }
-                    crate::ImageClass::Storage { format, .. } => {
-                        let access = if self
-                            .access
+                    crate::ImageClass::Storage { format, access } => {
+                        // A value such as a binding-array element has no global
+                        // variable access context. Use the image type's declared
+                        // access rather than treating a valid texture as invalid.
+                        let storage_access = if self.access.is_empty() {
+                            access
+                        } else {
+                            self.access
+                        };
+                        let access = if storage_access
                             .contains(crate::StorageAccess::LOAD | crate::StorageAccess::STORE)
                         {
                             "read_write"
-                        } else if self.access.contains(crate::StorageAccess::STORE) {
+                        } else if storage_access.contains(crate::StorageAccess::STORE) {
                             "write"
-                        } else if self.access.contains(crate::StorageAccess::LOAD) {
+                        } else if storage_access.contains(crate::StorageAccess::LOAD) {
                             "read"
                         } else {
                             log::warn!(
                                 "Storage access for {:?} (name '{}'): {:?}",
                                 self.handle,
                                 ty.name.as_deref().unwrap_or_default(),
-                                self.access
+                                storage_access
                             );
                             unreachable!("module is not valid");
                         };
