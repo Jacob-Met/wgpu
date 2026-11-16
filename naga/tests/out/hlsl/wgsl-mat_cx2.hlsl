@@ -96,19 +96,19 @@ float2x2 GetMatmOnStructWithMat(StructWithMat obj) {
     return float2x2(obj.m_0, obj.m_1);
 }
 
-void SetMatmOnStructWithMat(StructWithMat obj, float2x2 mat) {
+void SetMatmOnStructWithMat(inout StructWithMat obj, float2x2 mat) {
     obj.m_0 = mat[0];
     obj.m_1 = mat[1];
 }
 
-void SetMatVecmOnStructWithMat(StructWithMat obj, float2 vec, uint mat_idx) {
+void SetMatVecmOnStructWithMat(inout StructWithMat obj, float2 vec, uint mat_idx) {
     switch(mat_idx) {
     case 0: { obj.m_0 = vec; break; }
     case 1: { obj.m_1 = vec; break; }
     }
 }
 
-void SetMatScalarmOnStructWithMat(StructWithMat obj, float scalar, uint mat_idx, uint vec_idx) {
+void SetMatScalarmOnStructWithMat(inout StructWithMat obj, float scalar, uint mat_idx, uint vec_idx) {
     switch(mat_idx) {
     case 0: { obj.m_0[vec_idx] = scalar; break; }
     case 1: { obj.m_1[vec_idx] = scalar; break; }

@@ -111,13 +111,13 @@ float3x2 GetMatmOnBaz(Baz obj) {
     return float3x2(obj.m_0, obj.m_1, obj.m_2);
 }
 
-void SetMatmOnBaz(Baz obj, float3x2 mat) {
+void SetMatmOnBaz(inout Baz obj, float3x2 mat) {
     obj.m_0 = mat[0];
     obj.m_1 = mat[1];
     obj.m_2 = mat[2];
 }
 
-void SetMatVecmOnBaz(Baz obj, float2 vec, uint mat_idx) {
+void SetMatVecmOnBaz(inout Baz obj, float2 vec, uint mat_idx) {
     switch(mat_idx) {
     case 0: { obj.m_0 = vec; break; }
     case 1: { obj.m_1 = vec; break; }
@@ -125,7 +125,7 @@ void SetMatVecmOnBaz(Baz obj, float2 vec, uint mat_idx) {
     }
 }
 
-void SetMatScalarmOnBaz(Baz obj, float scalar, uint mat_idx, uint vec_idx) {
+void SetMatScalarmOnBaz(inout Baz obj, float scalar, uint mat_idx, uint vec_idx) {
     switch(mat_idx) {
     case 0: { obj.m_0[vec_idx] = scalar; break; }
     case 1: { obj.m_1[vec_idx] = scalar; break; }
