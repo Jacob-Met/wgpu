@@ -1495,7 +1495,7 @@ unsafe impl Sync for StagingBuffer {}
 /// [`Device::pending_writes`]: crate::device::Device
 #[derive(Debug)]
 pub struct StagingBuffer {
-    raw: Box<dyn hal::DynBuffer>,
+    raw: Option<Box<dyn hal::DynBuffer>>,
     device: Arc<Device>,
     pub(crate) size: wgt::BufferSize,
     is_coherent: bool,
@@ -1521,7 +1521,7 @@ impl StagingBuffer {
             .map_err(|e| device.handle_hal_error(e))?;
 
         let staging_buffer = StagingBuffer {
-            raw: ScopeGuard::into_inner(raw),
+            raw: Some(ScopeGuard::into_inner(raw)),
             device: device.clone(),
             size,
             is_coherent: mapping.is_coherent,
@@ -1612,31 +1612,35 @@ impl StagingBuffer {
         }
     }
 
-    pub(crate) fn flush(self) -> FlushedStagingBuffer {
+    pub(crate) fn flush(mut self) -> FlushedStagingBuffer {
         let device = self.device.raw();
+        let raw = self.raw.as_ref().expect("staging buffer already consumed");
         if !self.is_coherent {
             #[allow(clippy::single_range_in_vec_init)]
             unsafe {
-                device.flush_mapped_ranges(self.raw.as_ref(), &[0..self.size.get()])
+                device.flush_mapped_ranges(raw.as_ref(), &[0..self.size.get()])
             };
         }
-        unsafe { device.unmap_buffer(self.raw.as_ref()) };
-
-        let StagingBuffer {
-            raw, device, size, ..
-        } = self;
+        unsafe { device.unmap_buffer(raw.as_ref()) };
 
         FlushedStagingBuffer {
-            raw: ManuallyDrop::new(raw),
-            device,
-            size,
+            raw: ManuallyDrop::new(self.raw.take().unwrap()),
+            device: self.device.clone(),
+            size: self.size,
         }
     }
 
     pub(crate) fn dispose(self) {
-        let device = self.device.raw();
-        unsafe { device.unmap_buffer(self.raw.as_ref()) };
-        unsafe { device.destroy_buffer(self.raw) };
+        drop(self);
+    }
+}
+
+impl Drop for StagingBuffer {
+    fn drop(&mut self) {
+        if let Some(raw) = self.raw.take() {
+            unsafe { self.device.raw().unmap_buffer(raw.as_ref()) };
+            unsafe { self.device.raw().destroy_buffer(raw) };
+        }
     }
 }
 
