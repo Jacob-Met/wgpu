@@ -98,6 +98,11 @@ impl BindGroups {
             buffer,
             device.instance_flags,
         )?;
+        let dispatch = guard(dispatch, |bind_group| {
+            if let Some(bind_group) = bind_group {
+                unsafe { device.raw().destroy_bind_group(bind_group) };
+            }
+        });
         let draw = indirect_validation.draw.create_src_bind_group(
             device.raw(),
             &device.adapter.limits(),
@@ -106,7 +111,7 @@ impl BindGroups {
             device.instance_flags,
         )?;
 
-        match (dispatch, draw) {
+        match (ScopeGuard::into_inner(dispatch), draw) {
             (None, None) => Ok(None),
             (None, Some(_)) => unreachable!(),
             (Some(_), None) => unreachable!(),

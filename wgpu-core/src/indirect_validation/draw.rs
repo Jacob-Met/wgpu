@@ -760,6 +760,7 @@ fn create_buffer_and_bind_group(
         memory_flags: hal::MemoryFlags::empty(),
     };
     let (buffer, _) = unsafe { device.create_buffer(&buffer_desc) }?;
+    let buffer = guard(buffer, |buffer| unsafe { device.destroy_buffer(buffer) });
     let bind_group_desc = hal::BindGroupDescriptor {
         label: bind_group_label,
         layout: bind_group_layout,
@@ -780,7 +781,10 @@ fn create_buffer_and_bind_group(
         external_textures: &[],
     };
     let bind_group = unsafe { device.create_bind_group(&bind_group_desc) }?;
-    Ok(BufferPoolEntry { buffer, bind_group })
+    Ok(BufferPoolEntry {
+        buffer: ScopeGuard::into_inner(buffer),
+        bind_group,
+    })
 }
 
 #[derive(Clone)]
