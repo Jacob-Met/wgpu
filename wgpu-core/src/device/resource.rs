@@ -2204,6 +2204,10 @@ impl Device {
 
         let raw_texture = unsafe { self.raw().create_texture(&hal_desc) }
             .map_err(|e| self.handle_hal_error_with_nonfatal_oom(e))?;
+        // Texture creation can still fail while creating internal clear views.
+        let raw_texture = guard(raw_texture, |texture| unsafe {
+            self.raw().destroy_texture(texture);
+        });
 
         let clear_mode = if hal_usage
             .contains(wgt::TextureUses::DEPTH_WRITE | wgt::TextureUses::STENCIL_WRITE)
@@ -2224,7 +2228,17 @@ impl Device {
                 self.instance_flags,
             );
 
-            let mut clear_views = SmallVec::new();
+            let mut clear_views = guard(
+                SmallVec::new(),
+                |mut views: SmallVec<[ManuallyDrop<Box<dyn hal::DynTextureView>>; 1]>| {
+                    for view in views.drain(..) {
+                        unsafe {
+                            self.raw()
+                                .destroy_texture_view(ManuallyDrop::into_inner(view));
+                        }
+                    }
+                },
+            );
             for mip_level in 0..desc.mip_level_count {
                 for array_layer in 0..desc.size.depth_or_array_layers {
                     macro_rules! push_clear_view {
@@ -2264,7 +2278,7 @@ impl Device {
                 }
             }
             resource::TextureClearMode::RenderPass {
-                clear_views,
+                clear_views: ScopeGuard::into_inner(clear_views),
                 is_color,
             }
         } else {
@@ -2273,7 +2287,9 @@ impl Device {
 
         let texture = Texture::new(
             self,
-            resource::TextureInner::Native { raw: raw_texture },
+            resource::TextureInner::Native {
+                raw: ScopeGuard::into_inner(raw_texture),
+            },
             hal_usage,
             desc,
             format_features,
