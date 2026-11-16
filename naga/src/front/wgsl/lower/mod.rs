@@ -4876,7 +4876,25 @@ impl<'source, 'temp> Lowerer<'source, 'temp> {
         let mode = if let Sg::BroadcastFirst = mode {
             ir::GatherMode::BroadcastFirst
         } else {
-            let index = self.expression(args.next()?, ctx)?;
+            let mut index = self.expression(args.next()?, ctx)?;
+            // WGSL permits signed indices for broadcast and absolute shuffles,
+            // while Naga's IR and backends use unsigned subgroup indices.
+            if matches!(mode, Sg::Broadcast | Sg::Shuffle | Sg::QuadBroadcast) {
+                ctx.grow_types(index)?;
+                if matches!(
+                    *resolve_inner!(ctx, index),
+                    ir::TypeInner::Scalar(ir::Scalar::I32)
+                ) {
+                    let index_span = ctx.get_expression_span(index);
+                    index = ctx.append_expression(
+                        ir::Expression::As {
+                            expr: index,
+                            target: ir::Scalar::U32,
+                        },
+                        index_span,
+                    )?;
+                }
+            }
             match mode {
                 Sg::BroadcastFirst => unreachable!(),
                 Sg::Broadcast => ir::GatherMode::Broadcast(index),
