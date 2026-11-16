@@ -1020,9 +1020,13 @@ fn set_pipeline(
 
     state.pipeline = Some(pipeline.clone());
 
-    state
+    if state
         .binder
-        .change_pipeline_layout(pipeline.layout()?, &pipeline.late_sized_buffer_groups);
+        .change_pipeline_layout(pipeline.layout()?, &pipeline.late_sized_buffer_groups)
+    {
+        // A new pipeline layout may invalidate the previously uploaded data.
+        state.immediate_state.immediates_dirty = true;
+    }
 
     state.vertex.update_limits(&pipeline.vertex_steps);
 

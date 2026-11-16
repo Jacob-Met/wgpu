@@ -14,6 +14,7 @@ pub fn all_tests(vec: &mut Vec<GpuTestInitializer>) {
         NESTED_STRUCT,
         EMPTY_UPDATE,
         EMPTY_BUNDLE_TRANSITION,
+        BUNDLE_REUSE_IMMEDIATE,
     ]);
 }
 
@@ -177,7 +178,7 @@ static RENDER_PASS_TEST: GpuTestConfiguration = GpuTestConfiguration::new()
     )
     .run_async(move |ctx| async move {
         for use_render_bundle in [false, true] {
-            render_pass_test(&ctx, use_render_bundle, false).await;
+            render_pass_test(&ctx, use_render_bundle, false, false).await;
         }
     });
 
@@ -217,7 +218,12 @@ const SHADER2: &str = "
     }
 ";
 
-async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_transition: bool) {
+async fn render_pass_test(
+    ctx: &TestingContext,
+    use_render_bundle: bool,
+    empty_transition: bool,
+    reuse_immediate: bool,
+) {
     let output_buffer = ctx.device.create_buffer(&BufferDescriptor {
         label: Some("output buffer"),
         size: 8 * size_of::<u32>() as BufferAddress,
@@ -243,7 +249,7 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_t
         sample_count: 1,
         dimension: TextureDimension::D2,
         format: TextureFormat::Rgba8UnormSrgb,
-        usage: TextureUsages::RENDER_ATTACHMENT,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,
         label: Some("Output Texture"),
         view_formats: &[],
         texture_binding_view_dimension: None,
@@ -307,17 +313,21 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_t
         });
 
     // Also exercise a bundle switching to a pipeline with no immediate slots.
-    let no_immediate_pipeline = empty_transition.then(|| {
+    let no_immediate_pipeline = (empty_transition || reuse_immediate).then(|| {
         let shader = ctx.device.create_shader_module(ShaderModuleDescriptor {
             label: Some("No immediates"),
             source: ShaderSource::Wgsl(
-                "@vertex fn vs() -> @builtin(position) vec4f { return vec4f(0,0,0,1); }\n@fragment fn fs() -> @location(0) vec4f { return vec4f(0); }".into(),
+                (if reuse_immediate {
+                    "var<immediate> val:vec4i; @vertex fn vs() -> @builtin(position) vec4f { return vec4f(0,0,0,1); } @fragment fn fs() -> @location(0) vec4f { return vec4f(f32(val.z)/8.0,0,0,1); }"
+                } else {
+                    "@vertex fn vs() -> @builtin(position) vec4f { return vec4f(0,0,0,1); } @fragment fn fs() -> @location(0) vec4f { return vec4f(0); }"
+                }).into(),
             ),
         });
         let layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[],
-            immediate_size: 0,
+            immediate_size: if reuse_immediate { 16 } else { 0 },
         });
         ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("No immediate data"),
@@ -400,7 +410,9 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_t
             do_encoding(&mut render_bundle_encoder, &pipeline, &bind_group, &data);
             if let Some(pipeline) = &no_immediate_pipeline {
                 render_bundle_encoder.set_pipeline(pipeline);
-                render_bundle_encoder.set_immediates(0, &[]);
+                if empty_transition {
+                    render_bundle_encoder.set_immediates(0, &[]);
+                }
                 render_bundle_encoder.draw(0..1, 0..1);
             }
             let render_bundle = render_bundle_encoder.finish(&RenderBundleDescriptor::default());
@@ -412,6 +424,36 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_t
     }
     // Move the result to the cpu buffer, so that we can read them.
     command_encoder.copy_buffer_to_buffer(&output_buffer, 0, &cpu_buffer, 0, output_buffer.size());
+    let pixels_readback = reuse_immediate.then(|| {
+        let readback = ctx.device.create_buffer(&BufferDescriptor {
+            label: Some("Render pixel readback"),
+            size: 512,
+            usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        command_encoder.copy_texture_to_buffer(
+            TexelCopyTextureInfo {
+                texture: &output_texture,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
+            },
+            TexelCopyBufferInfo {
+                buffer: &readback,
+                layout: TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(256),
+                    rows_per_image: Some(2),
+                },
+            },
+            Extent3d {
+                width: 2,
+                height: 2,
+                depth_or_array_layers: 1,
+            },
+        );
+        readback
+    });
     let command_buffer = command_encoder.finish();
     ctx.queue.submit([command_buffer]);
     cpu_buffer.slice(..).map_async(MapMode::Read, |_| ());
@@ -423,6 +465,16 @@ async fn render_pass_test(ctx: &TestingContext, use_render_bundle: bool, empty_t
     drop(mapped_data);
     cpu_buffer.unmap();
     assert_eq!(&result, &data);
+    if let Some(readback) = pixels_readback {
+        readback.slice(..).map_async(MapMode::Read, |_| ());
+        ctx.async_poll(PollType::wait_indefinitely()).await.unwrap();
+        let pixels = readback.slice(..).get_mapped_range().unwrap();
+        let reds = [pixels[0], pixels[4], pixels[256], pixels[260]];
+        assert!(
+            reds.iter().any(|&r| r > 100),
+            "expected immediate-derived red fragment; got {reds:?}"
+        );
+    }
 }
 
 /// A bundle must not upload stale immediate data after switching to a
@@ -437,7 +489,21 @@ static EMPTY_BUNDLE_TRANSITION: GpuTestConfiguration = GpuTestConfiguration::new
                 ..Default::default()
             }),
     )
-    .run_async(|ctx| async move { render_pass_test(&ctx, true, true).await });
+    .run_async(|ctx| async move { render_pass_test(&ctx, true, true, false).await });
+
+/// Switching pipeline layouts in a bundle must preserve immediate values
+/// already supplied earlier in the bundle.
+#[apply(gpu_test!)]
+static BUNDLE_REUSE_IMMEDIATE: GpuTestConfiguration = GpuTestConfiguration::new()
+    .parameters(
+        TestParameters::default()
+            .features(Features::IMMEDIATES | Features::VERTEX_WRITABLE_STORAGE)
+            .limits(Limits {
+                max_immediate_size: 64,
+                ..Default::default()
+            }),
+    )
+    .run_async(|ctx| async move { render_pass_test(&ctx, true, false, true).await });
 
 /// Immediates have the same layout as storage buffers, so a struct-typed member is not
 /// aligned to 16 bytes: `inner` below lives at offset 4, directly after `x`.
