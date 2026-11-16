@@ -1118,7 +1118,10 @@ impl<W: Write> super::Writer<'_, W> {
         // Write function parameters
         write!(self.out, "(")?;
         let struct_name = &self.names[&NameKey::Type(access.ty)];
-        write!(self.out, "{struct_name} {STRUCT_ARGUMENT_VARIABLE_NAME}, ")?;
+        write!(
+            self.out,
+            "inout {struct_name} {STRUCT_ARGUMENT_VARIABLE_NAME}, "
+        )?;
         let member = match module.types[access.ty].inner {
             crate::TypeInner::Struct { ref members, .. } => &members[access.index as usize],
             _ => unreachable!(),
@@ -1179,7 +1182,10 @@ impl<W: Write> super::Writer<'_, W> {
         // Write function parameters
         write!(self.out, "(")?;
         let struct_name = &self.names[&NameKey::Type(access.ty)];
-        write!(self.out, "{struct_name} {STRUCT_ARGUMENT_VARIABLE_NAME}, ")?;
+        write!(
+            self.out,
+            "inout {struct_name} {STRUCT_ARGUMENT_VARIABLE_NAME}, "
+        )?;
         let member = match module.types[access.ty].inner {
             crate::TypeInner::Struct { ref members, .. } => &members[access.index as usize],
             _ => unreachable!(),
@@ -1258,7 +1264,10 @@ impl<W: Write> super::Writer<'_, W> {
         // Write function parameters
         write!(self.out, "(")?;
         let struct_name = &self.names[&NameKey::Type(access.ty)];
-        write!(self.out, "{struct_name} {STRUCT_ARGUMENT_VARIABLE_NAME}, ")?;
+        write!(
+            self.out,
+            "inout {struct_name} {STRUCT_ARGUMENT_VARIABLE_NAME}, "
+        )?;
         let member = match module.types[access.ty].inner {
             crate::TypeInner::Struct { ref members, .. } => &members[access.index as usize],
             _ => unreachable!(),

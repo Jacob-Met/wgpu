@@ -1,6 +1,7 @@
 mod example_wgsl;
 mod float_to_int16;
 mod hlsl_literals;
+mod hlsl_matrix_member_store;
 mod msl_storage_texture_binding;
 mod snapshots;
 mod spirv_capabilities;

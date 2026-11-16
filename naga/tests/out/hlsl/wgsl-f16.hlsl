@@ -55,19 +55,19 @@ half2x2 GetMatval_mat2x2_OnUniformCompatible(UniformCompatible obj) {
     return half2x2(obj.val_mat2x2__0, obj.val_mat2x2__1);
 }
 
-void SetMatval_mat2x2_OnUniformCompatible(UniformCompatible obj, half2x2 mat) {
+void SetMatval_mat2x2_OnUniformCompatible(inout UniformCompatible obj, half2x2 mat) {
     obj.val_mat2x2__0 = mat[0];
     obj.val_mat2x2__1 = mat[1];
 }
 
-void SetMatVecval_mat2x2_OnUniformCompatible(UniformCompatible obj, half2 vec, uint mat_idx) {
+void SetMatVecval_mat2x2_OnUniformCompatible(inout UniformCompatible obj, half2 vec, uint mat_idx) {
     switch(mat_idx) {
     case 0: { obj.val_mat2x2__0 = vec; break; }
     case 1: { obj.val_mat2x2__1 = vec; break; }
     }
 }
 
-void SetMatScalarval_mat2x2_OnUniformCompatible(UniformCompatible obj, half scalar, uint mat_idx, uint vec_idx) {
+void SetMatScalarval_mat2x2_OnUniformCompatible(inout UniformCompatible obj, half scalar, uint mat_idx, uint vec_idx) {
     switch(mat_idx) {
     case 0: { obj.val_mat2x2__0[vec_idx] = scalar; break; }
     case 1: { obj.val_mat2x2__1[vec_idx] = scalar; break; }
@@ -78,13 +78,13 @@ half3x2 GetMatval_mat3x2_OnUniformCompatible(UniformCompatible obj) {
     return half3x2(obj.val_mat3x2__0, obj.val_mat3x2__1, obj.val_mat3x2__2);
 }
 
-void SetMatval_mat3x2_OnUniformCompatible(UniformCompatible obj, half3x2 mat) {
+void SetMatval_mat3x2_OnUniformCompatible(inout UniformCompatible obj, half3x2 mat) {
     obj.val_mat3x2__0 = mat[0];
     obj.val_mat3x2__1 = mat[1];
     obj.val_mat3x2__2 = mat[2];
 }
 
-void SetMatVecval_mat3x2_OnUniformCompatible(UniformCompatible obj, half2 vec, uint mat_idx) {
+void SetMatVecval_mat3x2_OnUniformCompatible(inout UniformCompatible obj, half2 vec, uint mat_idx) {
     switch(mat_idx) {
     case 0: { obj.val_mat3x2__0 = vec; break; }
     case 1: { obj.val_mat3x2__1 = vec; break; }
@@ -92,7 +92,7 @@ void SetMatVecval_mat3x2_OnUniformCompatible(UniformCompatible obj, half2 vec, u
     }
 }
 
-void SetMatScalarval_mat3x2_OnUniformCompatible(UniformCompatible obj, half scalar, uint mat_idx, uint vec_idx) {
+void SetMatScalarval_mat3x2_OnUniformCompatible(inout UniformCompatible obj, half scalar, uint mat_idx, uint vec_idx) {
     switch(mat_idx) {
     case 0: { obj.val_mat3x2__0[vec_idx] = scalar; break; }
     case 1: { obj.val_mat3x2__1[vec_idx] = scalar; break; }
@@ -104,14 +104,14 @@ half4x2 GetMatval_mat4x2_OnUniformCompatible(UniformCompatible obj) {
     return half4x2(obj.val_mat4x2__0, obj.val_mat4x2__1, obj.val_mat4x2__2, obj.val_mat4x2__3);
 }
 
-void SetMatval_mat4x2_OnUniformCompatible(UniformCompatible obj, half4x2 mat) {
+void SetMatval_mat4x2_OnUniformCompatible(inout UniformCompatible obj, half4x2 mat) {
     obj.val_mat4x2__0 = mat[0];
     obj.val_mat4x2__1 = mat[1];
     obj.val_mat4x2__2 = mat[2];
     obj.val_mat4x2__3 = mat[3];
 }
 
-void SetMatVecval_mat4x2_OnUniformCompatible(UniformCompatible obj, half2 vec, uint mat_idx) {
+void SetMatVecval_mat4x2_OnUniformCompatible(inout UniformCompatible obj, half2 vec, uint mat_idx) {
     switch(mat_idx) {
     case 0: { obj.val_mat4x2__0 = vec; break; }
     case 1: { obj.val_mat4x2__1 = vec; break; }
@@ -120,7 +120,7 @@ void SetMatVecval_mat4x2_OnUniformCompatible(UniformCompatible obj, half2 vec, u
     }
 }
 
-void SetMatScalarval_mat4x2_OnUniformCompatible(UniformCompatible obj, half scalar, uint mat_idx, uint vec_idx) {
+void SetMatScalarval_mat4x2_OnUniformCompatible(inout UniformCompatible obj, half scalar, uint mat_idx, uint vec_idx) {
     switch(mat_idx) {
     case 0: { obj.val_mat4x2__0[vec_idx] = scalar; break; }
     case 1: { obj.val_mat4x2__1[vec_idx] = scalar; break; }
