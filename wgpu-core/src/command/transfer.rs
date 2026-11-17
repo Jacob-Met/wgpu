@@ -671,6 +671,7 @@ fn handle_texture_init(
         range: TextureInitRange {
             mip_range: copy_texture.mip_level..copy_texture.mip_level + 1,
             layer_range: init_layer_range,
+            aspect: copy_texture.aspect,
         },
         kind: init_kind,
     };
@@ -704,6 +705,7 @@ fn handle_texture_init(
                 TextureInitRange {
                     mip_range: init.mip_level..(init.mip_level + 1),
                     layer_range,
+                    aspect: init.aspect,
                 },
                 depth_slice,
                 state.raw_encoder,

@@ -9,6 +9,7 @@ pub fn all_tests(tests: &mut Vec<GpuTestInitializer>) {
         NV12_TEXTURE_CREATION_SAMPLING,
         P010_TEXTURE_CREATION_SAMPLING,
         NV12_TEXTURE_RENDERING,
+        NV12_PLANE_DISCARD_PRESERVES_OTHER_PLANE,
         NV12_TEXTURE_COPYING,
         P010_TEXTURE_COPYING,
         NV12_PLANE_TO_SINGLE_PLANE_COPY,
@@ -349,6 +350,150 @@ static NV12_TEXTURE_RENDERING: GpuTestConfiguration = GpuTestConfiguration::new(
             &ctx,
             (&y_view, wgpu::TextureFormat::R8Unorm),
             (&uv_view, wgpu::TextureFormat::Rg8Unorm),
+        );
+    });
+
+/// Discarding one renderable NV12 plane must not destroy the other plane's contents.
+#[apply(gpu_test!)]
+static NV12_PLANE_DISCARD_PRESERVES_OTHER_PLANE: GpuTestConfiguration = GpuTestConfiguration::new()
+    .parameters(TestParameters::default().features(wgpu::Features::TEXTURE_FORMAT_NV12))
+    .run_async(|ctx| async move {
+        let full = wgpu::Extent3d {
+            width: 256,
+            height: 128,
+            depth_or_array_layers: 1,
+        };
+        let half = wgpu::Extent3d {
+            width: 128,
+            height: 64,
+            depth_or_array_layers: 1,
+        };
+        let texture = ctx.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("NV12 discard isolation"),
+            size: full,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::NV12,
+            usage: wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+            texture_binding_view_dimension: None,
+        });
+        let y = vec![73u8; (full.width * full.height) as usize];
+        let uv: Vec<u8> = (0..(half.width * half.height * 2))
+            .map(|i| (i.wrapping_mul(17) ^ 0xAA) as u8)
+            .collect();
+        for (aspect, data, size) in [
+            (wgpu::TextureAspect::Plane0, y.as_slice(), full),
+            (wgpu::TextureAspect::Plane1, uv.as_slice(), half),
+        ] {
+            ctx.queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect,
+                },
+                data,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(256),
+                    rows_per_image: Some(size.height),
+                },
+                size,
+            );
+        }
+        let y_view = texture.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(wgpu::TextureFormat::R8Unorm),
+            aspect: wgpu::TextureAspect::Plane0,
+            ..Default::default()
+        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        {
+            let _discard = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &y_view,
+                    resolve_target: None,
+                    depth_slice: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Discard,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+        }
+        ctx.queue.submit([encoder.finish()]);
+        let single = ctx.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: half,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rg8Unorm,
+            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+            texture_binding_view_dimension: None,
+        });
+        let readback = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: uv.len() as u64,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        encoder.copy_texture_to_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::Plane1,
+            },
+            wgpu::TexelCopyTextureInfo {
+                texture: &single,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            half,
+        );
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &single,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &readback,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(256),
+                    rows_per_image: Some(half.height),
+                },
+            },
+            half,
+        );
+        ctx.queue.submit([encoder.finish()]);
+        let slice = readback.slice(..);
+        slice.map_async(wgpu::MapMode::Read, |_| ());
+        ctx.async_poll(wgpu::PollType::wait_indefinitely())
+            .await
+            .unwrap();
+        assert_eq!(
+            slice.get_mapped_range().unwrap().as_ref(),
+            uv.as_slice(),
+            "discard of plane 0 erased plane 1"
         );
     });
 

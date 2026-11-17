@@ -1750,9 +1750,17 @@ impl Texture {
             initialization_status: RwLock::new(
                 rank::TEXTURE_INITIALIZATION_STATUS,
                 if init {
-                    TextureInitTracker::new(desc.mip_level_count, desc.array_layer_count())
+                    TextureInitTracker::new(
+                        desc.mip_level_count,
+                        desc.array_layer_count(),
+                        desc.format.planes().unwrap_or(1),
+                    )
                 } else {
-                    TextureInitTracker::new(desc.mip_level_count, 0)
+                    TextureInitTracker::new(
+                        desc.mip_level_count,
+                        0,
+                        desc.format.planes().unwrap_or(1),
+                    )
                 },
             ),
             full_range: TextureSelector {
@@ -1779,7 +1787,7 @@ impl Texture {
             },
             initialization_status: RwLock::new(
                 rank::TEXTURE_INITIALIZATION_STATUS,
-                TextureInitTracker::new(0, 0),
+                TextureInitTracker::new(0, 0, 1),
             ),
             full_range: TextureSelector {
                 mips: 0..desc.mip_level_count,
@@ -1921,6 +1929,7 @@ impl Texture {
         desc: &'a wgt::TextureDescriptor<String, Vec<wgt::TextureFormat>>,
         mip_level: u32,
         depth_or_layer: u32,
+        aspect: wgt::TextureAspect,
     ) -> &'a dyn hal::DynTextureView {
         match *clear_mode {
             TextureClearMode::BufferCopy => {
@@ -1940,7 +1949,13 @@ impl Texture {
                 } else {
                     mip_level * desc.size.depth_or_array_layers
                 } + depth_or_layer;
-                clear_views[index as usize].as_ref()
+                let planes = desc.format.planes().unwrap_or(1);
+                let plane = if planes == 1 {
+                    0
+                } else {
+                    aspect.to_plane().expect("clear view requires a plane")
+                };
+                clear_views[(index * planes + plane) as usize].as_ref()
             }
         }
     }
@@ -2427,9 +2442,7 @@ impl Texture {
     /// The entire contents of the texture must already be initialized.
     pub unsafe fn mark_externally_initialized(&self) {
         let mut initialization_status = self.initialization_status.write();
-        for mip_tracker in initialization_status.mips.iter_mut() {
-            mip_tracker.drain(0..self.desc.array_layer_count());
-        }
+        initialization_status.mark_externally_initialized(0..self.desc.array_layer_count());
     }
 }
 

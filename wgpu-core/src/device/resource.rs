@@ -3670,6 +3670,7 @@ impl Device {
                     .desc
                     .range
                     .layer_range(texture.desc.array_layer_count()),
+                aspect: view.desc.range.aspect,
             },
             kind: MemoryInitKind::NeedsInitializedMemory,
         });
@@ -3782,6 +3783,7 @@ impl Device {
                         .desc
                         .range
                         .layer_range(texture.desc.array_layer_count()),
+                    aspect: plane.desc.range.aspect,
                 },
                 kind: MemoryInitKind::NeedsInitializedMemory,
             });
@@ -3858,6 +3860,7 @@ impl Device {
                     .desc
                     .range
                     .layer_range(view.parent.desc.array_layer_count()),
+                aspect: view.desc.range.aspect,
             },
             kind: MemoryInitKind::NeedsInitializedMemory,
         });

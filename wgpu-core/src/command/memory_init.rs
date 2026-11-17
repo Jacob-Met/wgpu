@@ -23,6 +23,7 @@ use super::{clear_texture, BakedCommands, ClearError};
 pub(crate) struct TextureSurfaceDiscard {
     pub texture: Arc<Texture>,
     pub mip_level: u32,
+    pub aspect: wgt::TextureAspect,
 
     /// For 3D textures, this field is a depth slice, otherwise, it is an array
     /// layer. Unlike the primary initialization tracker, we _do_ track
@@ -131,7 +132,15 @@ impl CommandBufferTextureMemoryActions {
                     .layer_range
                     .contains(&discarded_surface.layer_or_depth_slice)
             };
-            if !overlaps_discard {
+            if !overlaps_discard
+                || (discarded_surface
+                    .texture
+                    .desc
+                    .format
+                    .is_multi_planar_format()
+                    && action.range.aspect != wgt::TextureAspect::All
+                    && discarded_surface.aspect != action.range.aspect)
+            {
                 return true;
             }
 
@@ -152,6 +161,7 @@ impl CommandBufferTextureMemoryActions {
                             mip_range: discarded_surface.mip_level
                                 ..(discarded_surface.mip_level + 1),
                             layer_range: layer..(layer + 1),
+                            aspect: discarded_surface.aspect,
                         },
                         kind: MemoryInitKind::ImplicitlyInitialized,
                     });
@@ -208,6 +218,7 @@ pub(crate) fn fixup_discarded_surfaces<InitIter: Iterator<Item = TextureSurfaceD
             TextureInitRange {
                 mip_range: init.mip_level..(init.mip_level + 1),
                 layer_range,
+                aspect: init.aspect,
             },
             depth_slice,
             encoder,
@@ -362,28 +373,14 @@ impl BakedCommands {
             {
                 let mut initialization_status = texture_use.texture.initialization_status.write();
                 let use_range = texture_use.range;
-                let affected_mip_trackers = initialization_status
-                    .mips
-                    .iter_mut()
-                    .enumerate()
-                    .skip(use_range.mip_range.start as usize)
-                    .take((use_range.mip_range.end - use_range.mip_range.start) as usize);
-
-                match texture_use.kind {
-                    MemoryInitKind::ImplicitlyInitialized => {
-                        for (_, mip_tracker) in affected_mip_trackers {
-                            mip_tracker.drain(use_range.layer_range.clone());
-                        }
-                    }
-                    MemoryInitKind::NeedsInitializedMemory => {
-                        for (mip_level, mip_tracker) in affected_mip_trackers {
-                            for layer_range in mip_tracker.drain(use_range.layer_range.clone()) {
-                                ranges.push(TextureInitRange {
-                                    mip_range: (mip_level as u32)..(mip_level as u32 + 1),
-                                    layer_range,
-                                });
-                            }
-                        }
+                let pending = initialization_status.drain(&use_range);
+                if let MemoryInitKind::NeedsInitializedMemory = texture_use.kind {
+                    for (aspect, mip_level, layer_range) in pending {
+                        ranges.push(TextureInitRange {
+                            mip_range: mip_level..(mip_level + 1),
+                            layer_range,
+                            aspect,
+                        });
                     }
                 }
             }
@@ -437,6 +434,7 @@ impl BakedCommands {
                     .discard(
                         surface_discard.mip_level,
                         surface_discard.layer_or_depth_slice,
+                        surface_discard.aspect,
                     );
             }
         }
@@ -467,6 +465,7 @@ impl BakedCommands {
             let range = TextureInitRange {
                 mip_range: discard.mip_level..(discard.mip_level + 1),
                 layer_range: 0..1,
+                aspect: discard.aspect,
             };
             let clear_result = clear_texture(
                 &discard.texture,

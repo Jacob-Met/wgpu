@@ -135,10 +135,7 @@ impl Queue {
         // If the texture is uninitialized it needs to be cleared before presenting
         let needs_clear = {
             let status = texture.initialization_status.read();
-            status
-                .mips
-                .first()
-                .is_some_and(|mip| mip.check(0..1).is_some())
+            status.mip(0, wgt::TextureAspect::All).check(0..1).is_some()
         };
 
         let mut pending_writes = self.pending_writes.lock();
@@ -153,6 +150,7 @@ impl Queue {
                 TextureInitRange {
                     mip_range: 0..1,
                     layer_range: 0..1,
+                    aspect: wgt::TextureAspect::All,
                 },
                 None,
                 encoder,
@@ -166,7 +164,11 @@ impl Queue {
                 ClearError::Device(e) => e,
                 _ => DeviceError::Lost,
             })?;
-            texture.initialization_status.write().mips[0].drain(0..1);
+            texture
+                .initialization_status
+                .write()
+                .mip_mut(0, wgt::TextureAspect::All)
+                .drain(0..1);
         }
 
         // Transition the texture to PRESENT in the device tracker.
@@ -1204,31 +1206,32 @@ impl Queue {
         };
         let layer_ranges_to_clear = {
             let mut dst_initialization_status = dst.initialization_status.write();
-            if dst_initialization_status.mips[destination.mip_level as usize]
-                .check(init_layer_range.clone())
-                .is_some()
-            {
-                if has_copy_partial_init_tracker_coverage(size, &destination, &dst.desc) {
-                    dst_initialization_status.mips[destination.mip_level as usize]
-                        .drain(init_layer_range)
-                        .collect::<Vec<core::ops::Range<u32>>>()
-                } else {
-                    dst_initialization_status.mips[destination.mip_level as usize]
-                        .drain(init_layer_range);
-                    vec![]
+            let mut ranges = Vec::new();
+            for aspect in dst_initialization_status.tracked_aspects(destination.aspect) {
+                let tracker = dst_initialization_status.mip_mut(destination.mip_level, aspect);
+                if tracker.check(init_layer_range.clone()).is_some() {
+                    if has_copy_partial_init_tracker_coverage(&size, &destination, &dst.desc) {
+                        ranges.extend(
+                            tracker
+                                .drain(init_layer_range.clone())
+                                .map(|range| (aspect, range)),
+                        );
+                    } else {
+                        tracker.drain(init_layer_range.clone());
+                    }
                 }
-            } else {
-                vec![]
             }
+            ranges
         };
         if !layer_ranges_to_clear.is_empty() {
             let mut trackers = self.device.trackers.lock();
-            for layer_range in layer_ranges_to_clear {
+            for (aspect, layer_range) in layer_ranges_to_clear {
                 crate::command::clear_texture(
                     &dst,
                     TextureInitRange {
                         mip_range: destination.mip_level..(destination.mip_level + 1),
                         layer_range,
+                        aspect,
                     },
                     None,
                     encoder,
@@ -1490,31 +1493,32 @@ impl Queue {
         };
         let layer_ranges_to_clear = {
             let mut dst_initialization_status = dst.initialization_status.write();
-            if dst_initialization_status.mips[destination.mip_level as usize]
-                .check(init_layer_range.clone())
-                .is_some()
-            {
-                if has_copy_partial_init_tracker_coverage(&size, &destination, &dst.desc) {
-                    dst_initialization_status.mips[destination.mip_level as usize]
-                        .drain(init_layer_range)
-                        .collect::<Vec<core::ops::Range<u32>>>()
-                } else {
-                    dst_initialization_status.mips[destination.mip_level as usize]
-                        .drain(init_layer_range);
-                    vec![]
+            let mut ranges = Vec::new();
+            for aspect in dst_initialization_status.tracked_aspects(destination.aspect) {
+                let tracker = dst_initialization_status.mip_mut(destination.mip_level, aspect);
+                if tracker.check(init_layer_range.clone()).is_some() {
+                    if has_copy_partial_init_tracker_coverage(&size, &destination, &dst.desc) {
+                        ranges.extend(
+                            tracker
+                                .drain(init_layer_range.clone())
+                                .map(|range| (aspect, range)),
+                        );
+                    } else {
+                        tracker.drain(init_layer_range.clone());
+                    }
                 }
-            } else {
-                vec![]
             }
+            ranges
         };
         if !layer_ranges_to_clear.is_empty() {
             let mut trackers = self.device.trackers.lock();
-            for layer_range in layer_ranges_to_clear {
+            for (aspect, layer_range) in layer_ranges_to_clear {
                 crate::command::clear_texture(
                     &dst,
                     TextureInitRange {
                         mip_range: destination.mip_level..(destination.mip_level + 1),
                         layer_range,
+                        aspect,
                     },
                     None,
                     encoder,

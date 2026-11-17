@@ -1212,6 +1212,7 @@ impl RenderPassInfo {
                 texture: view.parent.clone(),
                 mip_level: view.selector.mips.start,
                 layer_or_depth_slice: depth_slice.unwrap_or(view.selector.layers.start),
+                aspect: view.desc.range.aspect,
             });
         }
     }
@@ -1415,6 +1416,7 @@ impl RenderPassInfo {
                         texture: view.parent.clone(),
                         mip_level: view.selector.mips.start,
                         layer_or_depth_slice: view.selector.layers.start,
+                        aspect: wgt::TextureAspect::All,
                     });
                 }
             }
